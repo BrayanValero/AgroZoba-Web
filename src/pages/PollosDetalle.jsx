@@ -144,7 +144,7 @@ const PollosDetalle = () => {
 
 
     return (
-        <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display max-w-[430px] mx-auto bg-white dark:bg-[#0a1108] shadow-2xl relative">
+        <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display max-w-7xl mx-auto bg-white dark:bg-[#0a1108] shadow-2xl relative">
             {/* Header */}
             <header className="bg-white dark:bg-[#0a1108] border-b border-[#dde6db] dark:border-[#2a3528] p-4 sticky top-0 z-40 safe-top">
                 <div className="flex items-center gap-3">
@@ -407,17 +407,16 @@ const PollosDetalle = () => {
                         <form onSubmit={handleAddVenta} className="space-y-4">
                             <div>
                                 <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Cliente</label>
-                                <input
-                                    type="text"
+                                <select
                                     value={formVenta.cliente}
                                     onChange={e => setFormVenta({ ...formVenta, cliente: e.target.value })}
                                     className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
-                                    placeholder="Nombre del cliente"
-                                    list="clients-list"
-                                />
-                                <datalist id="clients-list">
-                                    {recentClients.map(c => <option key={c} value={c} />)}
-                                </datalist>
+                                >
+                                    <option value="">Consumidor Final</option>
+                                    {recentClients.map((client, idx) => (
+                                        <option key={idx} value={client.nombre}>{client.nombre}</option>
+                                    ))}
+                                </select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

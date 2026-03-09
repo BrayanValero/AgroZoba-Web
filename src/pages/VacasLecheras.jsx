@@ -19,15 +19,14 @@ const VacasLecheras = () => {
 
     const [formVaca, setFormVaca] = useState({
         nombre: '',
-        codigo: '',
-        estado: 'produccion',
-        fecha_nacimiento: ''
+        estado: 'produccion'
     })
 
     const [formProduccion, setFormProduccion] = useState({
         litros: '',
-        precio_por_litro: 2500,
-        estado_pago: 'pagado'
+        precio_por_litro: 3500,
+        estado_pago: 'pagado',
+        cliente: ''
     })
 
     useEffect(() => {
@@ -60,9 +59,7 @@ const VacasLecheras = () => {
             setShowFormVaca(false)
             setFormVaca({
                 nombre: '',
-                codigo: '',
-                estado: 'produccion',
-                fecha_nacimiento: ''
+                estado: 'produccion'
             })
             loadVacas()
         }
@@ -78,6 +75,7 @@ const VacasLecheras = () => {
             precio_por_litro: parseFloat(formProduccion.precio_por_litro),
             monto_total: montoTotal,
             estado_pago: formProduccion.estado_pago,
+            cliente: formProduccion.cliente || null,
             concepto: 'Venta de Leche',
             user_id: user.id,
             fecha: new Date().toISOString().split('T')[0]
@@ -87,8 +85,9 @@ const VacasLecheras = () => {
             setShowFormProduccion(false)
             setFormProduccion({
                 litros: '',
-                precio_por_litro: 2500,
-                estado_pago: 'pagado'
+                precio_por_litro: 3500,
+                estado_pago: 'pagado',
+                cliente: ''
             })
             setSelectedVaca(null)
             loadVacas()
@@ -134,7 +133,7 @@ const VacasLecheras = () => {
 
     return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen">
-            <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden max-w-md mx-auto bg-white dark:bg-background-dark shadow-xl">
+            <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden max-w-7xl mx-auto bg-white dark:bg-background-dark shadow-xl">
                 {/* TopAppBar */}
                 <header className="sticky top-0 z-50 bg-white/80 dark:bg-background-dark/80 ios-blur border-b border-gray-100 dark:border-gray-800">
                     <div className="flex items-center p-4 pb-2 justify-between">
@@ -199,7 +198,7 @@ const VacasLecheras = () => {
                 </div>
 
                 {/* Inventory List */}
-                <div className="flex flex-col gap-1 p-4 pb-24">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 pb-24">
                     {loading ? (
                         <div className="text-center py-8">
                             <span className="material-symbols-outlined text-4xl text-primary animate-pulse">pets</span>
@@ -250,8 +249,8 @@ const VacasLecheras = () => {
                                                 }}
                                                 className="flex items-center justify-center px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-bold gap-1"
                                             >
-                                                <span className="material-symbols-outlined text-xs">water_drop</span>
-                                                Producción
+                                                <span className="material-symbols-outlined text-xs">shopping_basket</span>
+                                                Vender Leche
                                             </button>
                                         )}
                                     </div>
@@ -288,16 +287,6 @@ const VacasLecheras = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Código/ID</label>
-                                    <input
-                                        type="text"
-                                        value={formVaca.codigo}
-                                        onChange={(e) => setFormVaca({ ...formVaca, codigo: e.target.value })}
-                                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-gray-900 dark:text-white"
-                                        placeholder="Ej: 402"
-                                    />
-                                </div>
-                                <div>
                                     <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Estado</label>
                                     <select
                                         value={formVaca.estado}
@@ -308,15 +297,6 @@ const VacasLecheras = () => {
                                         <option value="seca">Seca</option>
                                         <option value="enferma">Enferma</option>
                                     </select>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Fecha de Nacimiento</label>
-                                    <input
-                                        type="date"
-                                        value={formVaca.fecha_nacimiento}
-                                        onChange={(e) => setFormVaca({ ...formVaca, fecha_nacimiento: e.target.value })}
-                                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-gray-900 dark:text-white"
-                                    />
                                 </div>
                                 <button
                                     type="submit"
@@ -335,8 +315,8 @@ const VacasLecheras = () => {
                         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full">
                             <div className="flex justify-between items-center mb-4">
                                 <div>
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Producción de Leche</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">{selectedVaca.nombre}</p>
+                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Registrar Venta de Leche</h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-400">Vaca: {selectedVaca.nombre}</p>
                                 </div>
                                 <button onClick={() => {
                                     setShowFormProduccion(false)
@@ -347,7 +327,7 @@ const VacasLecheras = () => {
                             </div>
                             <form onSubmit={handleSubmitProduccion} className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Litros Producidos</label>
+                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Litros Vendidos</label>
                                     <input
                                         type="number"
                                         step="0.1"
@@ -380,6 +360,19 @@ const VacasLecheras = () => {
                                     >
                                         <option value="pagado">Pagado (Caja)</option>
                                         <option value="debe">Crédito (Debe)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Cliente</label>
+                                    <select
+                                        value={formProduccion.cliente}
+                                        onChange={(e) => setFormProduccion({ ...formProduccion, cliente: e.target.value })}
+                                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-gray-900 dark:text-white"
+                                    >
+                                        <option value="">Consumidor Final</option>
+                                        {recentClients.map((client, idx) => (
+                                            <option key={idx} value={client.nombre}>{client.nombre}</option>
+                                        ))}
                                     </select>
                                 </div>
                                 <div className="pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-end">

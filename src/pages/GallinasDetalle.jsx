@@ -86,7 +86,7 @@ const GallinasDetalle = () => {
     const balance = (totalVentas - totalPorCobrar) - totalGastos
 
     return (
-        <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display">
+        <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display max-w-7xl mx-auto w-full relative border-x border-[#dde6db] dark:border-[#2a3528]">
             {/* Header */}
             <header className="bg-white dark:bg-white/5 border-b border-gray-100 dark:border-white/10 p-4 sticky top-0 z-10 safe-top">
                 <div className="flex items-center gap-3">

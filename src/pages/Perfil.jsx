@@ -20,7 +20,7 @@ const Perfil = () => {
                 </h1>
             </nav>
 
-            <main className="flex-1 max-w-md mx-auto w-full p-6 pb-24">
+            <main className="flex-1 max-w-7xl mx-auto w-full p-6 pb-24">
                 {/* Profile Header */}
                 <div className="flex flex-col items-center mb-8">
                     <div className="relative mb-4">

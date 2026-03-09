@@ -28,8 +28,9 @@ const GallinasPosura = () => {
 
     const [formVenta, setFormVenta] = useState({
         cantidad: '',
-        precio_unitario: 12000,
-        estado_pago: 'debe'
+        precio_unitario: 13000,
+        estado_pago: 'debe',
+        cliente: ''
     })
 
     useEffect(() => {
@@ -55,13 +56,13 @@ const GallinasPosura = () => {
         e.preventDefault()
 
         const loteData = {
-            nombre: formLote.nombre,
-            raza: formLote.raza,
+            nombre: 'Lote Principal',
+            raza: 'No especificada',
             poblacion_inicial: parseInt(formLote.poblacion_inicial),
             poblacion_actual: parseInt(formLote.poblacion_inicial),
-            fecha_inicio: formLote.fecha_inicio,
+            fecha_inicio: formLote.fecha_inicio || new Date().toISOString().split('T')[0],
             user_id: user.id,
-            edad_semanas: parseInt(formLote.edad_inicial || 0)
+            edad_semanas: 0
         }
 
         const { data: newLote, error } = await createLote(loteData)
@@ -123,6 +124,7 @@ const GallinasPosura = () => {
             monto_total: montoTotal,
             estado_pago: formVenta.estado_pago,
             concepto: `Venta de huevos (${unidadMedida === 'carton' ? 'Cartones' : 'Unidades'})`,
+            cliente: formVenta.cliente || null,
             user_id: user.id,
             fecha: new Date().toISOString().split('T')[0]
         })
@@ -131,8 +133,9 @@ const GallinasPosura = () => {
             setShowFormVenta(false)
             setFormVenta({
                 cantidad: '',
-                precio_unitario: unidadMedida === 'carton' ? 12000 : 400,
-                estado_pago: 'debe'
+                precio_unitario: unidadMedida === 'carton' ? 13000 : 400,
+                estado_pago: 'debe',
+                cliente: ''
             })
             setSelectedLote(null)
             loadLotes()
@@ -154,7 +157,7 @@ const GallinasPosura = () => {
 
     return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen text-[#121811] dark:text-white">
-            <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden max-w-[430px] mx-auto bg-white dark:bg-[#0a1108] shadow-2xl">
+            <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden max-w-7xl mx-auto bg-white dark:bg-[#0a1108] shadow-2xl">
                 {/* TopAppBar */}
                 <div className="flex items-center bg-white dark:bg-[#0a1108] p-4 pb-2 justify-between sticky top-0 z-50 border-b border-[#dde6db] dark:border-[#2a3528]">
                     <Link to="/" className="text-[#121811] dark:text-white flex size-12 shrink-0 items-center cursor-pointer">
@@ -165,12 +168,14 @@ const GallinasPosura = () => {
                         <span className="text-[10px] font-bold uppercase tracking-wider text-[#688961]">Gestión de Lotes</span>
                     </div>
                     <div className="flex w-12 items-center justify-end">
-                        <button
-                            onClick={() => setShowFormLote(true)}
-                            className="flex items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-primary"
-                        >
-                            <span className="material-symbols-outlined">add_circle</span>
-                        </button>
+                        {lotes.length === 0 && (
+                            <button
+                                onClick={() => setShowFormLote(true)}
+                                className="flex items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-primary"
+                            >
+                                <span className="material-symbols-outlined">add_circle</span>
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -188,7 +193,7 @@ const GallinasPosura = () => {
                             <p className="text-[#688961] text-sm mt-2">Crea tu primer lote de gallinas</p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {lotes.map((lote) => (
                                 <div
                                     key={lote.id}
@@ -270,70 +275,15 @@ const GallinasPosura = () => {
                             </div>
                             <form onSubmit={handleSubmitLote} className="space-y-4">
                                 <div>
-                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Nombre del Lote</label>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Gallinas en Producción</label>
                                     <input
-                                        type="text"
-                                        value={formLote.nombre}
-                                        onChange={(e) => setFormLote({ ...formLote, nombre: e.target.value })}
-                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                        placeholder="Ej: Lote #04"
+                                        type="number"
+                                        value={formLote.poblacion_inicial}
+                                        onChange={(e) => setFormLote({ ...formLote, poblacion_inicial: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-2xl font-black text-[#121811] dark:text-white mb-8"
+                                        placeholder="Ej: 1200"
                                         required
                                     />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Raza</label>
-                                    <input
-                                        type="text"
-                                        value={formLote.raza}
-                                        onChange={(e) => setFormLote({ ...formLote, raza: e.target.value })}
-                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                        placeholder="Ej: Hy-Line Brown"
-                                    />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Población Inicial</label>
-                                        <input
-                                            type="number"
-                                            value={formLote.poblacion_inicial}
-                                            onChange={(e) => setFormLote({ ...formLote, poblacion_inicial: e.target.value })}
-                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                            placeholder="1200"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Precio/Ave</label>
-                                        <input
-                                            type="number"
-                                            value={formLote.precio_unitario}
-                                            onChange={(e) => setFormLote({ ...formLote, precio_unitario: e.target.value })}
-                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                            placeholder="$0.00"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Edad Inicial (Sem)</label>
-                                        <input
-                                            type="number"
-                                            value={formLote.edad_inicial}
-                                            onChange={(e) => setFormLote({ ...formLote, edad_inicial: e.target.value })}
-                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                            placeholder="Ej: 16"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Fecha de Inicio</label>
-                                        <input
-                                            type="date"
-                                            value={formLote.fecha_inicio}
-                                            onChange={(e) => setFormLote({ ...formLote, fecha_inicio: e.target.value })}
-                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                            required
-                                        />
-                                    </div>
                                 </div>
                                 <button
                                     type="submit"
@@ -369,7 +319,7 @@ const GallinasPosura = () => {
                                             type="button"
                                             onClick={() => {
                                                 setUnidadMedida('carton')
-                                                setFormVenta({ ...formVenta, precio_unitario: 12000 })
+                                                setFormVenta({ ...formVenta, precio_unitario: 13000 })
                                             }}
                                             className={`flex-1 py-2 text-sm font-bold rounded-md ${unidadMedida === 'carton' ? 'bg-white dark:bg-primary dark:text-black shadow-sm' : 'text-[#688961] dark:text-gray-400'}`}
                                         >
@@ -395,10 +345,23 @@ const GallinasPosura = () => {
                                     <select
                                         value={formVenta.estado_pago}
                                         onChange={(e) => setFormVenta({ ...formVenta, estado_pago: e.target.value })}
-                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white mb-2"
                                     >
                                         <option value="pagado">Pagado (Caja)</option>
                                         <option value="debe">Crédito (Debe)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Cliente (Opcional)</label>
+                                    <select
+                                        value={formVenta.cliente}
+                                        onChange={(e) => setFormVenta({ ...formVenta, cliente: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
+                                    >
+                                        <option value="">Consumidor Final</option>
+                                        {recentClients.map((client, idx) => (
+                                            <option key={idx} value={client.nombre}>{client.nombre}</option>
+                                        ))}
                                     </select>
                                 </div>
 
@@ -448,7 +411,7 @@ const GallinasPosura = () => {
                 <div className="h-20"></div>
                 <BottomNavigation />
             </div>
-        </div>
+        </div >
     )
 }
 

@@ -189,7 +189,7 @@ const PollosEngorde = () => {
 
     return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen text-[#121811] dark:text-white">
-            <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden max-w-[430px] mx-auto bg-white dark:bg-[#0a1108] shadow-2xl">
+            <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden max-w-7xl mx-auto bg-white dark:bg-[#0a1108] shadow-2xl">
                 {/* TopAppBar */}
                 <div className="flex items-center bg-white dark:bg-[#0a1108] p-4 pb-2 justify-between sticky top-0 z-50 border-b border-[#dde6db] dark:border-[#2a3528]">
                     <Link to="/" className="text-[#121811] dark:text-white flex size-12 shrink-0 items-center cursor-pointer">
@@ -223,7 +223,7 @@ const PollosEngorde = () => {
                             <p className="text-[#688961] text-sm mt-2">Crea tu primera producción de pollos</p>
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {producciones.map((prod) => (
                                 <div
                                     key={prod.id}

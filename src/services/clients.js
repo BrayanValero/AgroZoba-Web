@@ -1,39 +1,81 @@
 import { supabase } from './supabase'
 
 /**
- * Obtener todos los clientes únicos registrados en las ventas de todos los módulos
+ * Obtener todos los clientes (desde la nueva tabla `clientes`)
+ */
+export const getClientes = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('clientes')
+            .select('*')
+            .eq('user_id', userId)
+            .order('nombre', { ascending: true })
+
+        return { data, error }
+    } catch (error) {
+        console.error('Error fetching clients:', error)
+        return { data: [], error }
+    }
+}
+
+/**
+ * Función por compatibilidad hacia atrás
+ * Ahora devuelve solo un array de nombres de clientes para los autocompletes viejos
+ * o podemos devolver los objetos completos si la vista lo soporta.
+ * Para no romper, sigue devolviendo arreglo de strings.
  */
 export const getAllRecentClients = async (userId) => {
     try {
-        // Consultar de las 3 tablas de ingresos/ventas
-        const [
-            resPollos,
-            resGallinas,
-            resVacas
-        ] = await Promise.allSettled([
-            supabase.from('ingresos_pollos').select('cliente').eq('user_id', userId).not('cliente', 'is', null),
-            supabase.from('ventas_gallinas').select('cliente').eq('user_id', userId).not('cliente', 'is', null),
-            supabase.from('produccion_leche').select('cliente').eq('user_id', userId).not('cliente', 'is', null)
-        ])
+        const { data, error } = await getClientes(userId)
+        if (error) throw error
 
-        const clientsPollos = resPollos.status === 'fulfilled' && !resPollos.value.error ? resPollos.value.data : []
-        const clientsGallinas = resGallinas.status === 'fulfilled' && !resGallinas.value.error ? resGallinas.value.data : []
-        const clientsVacas = resVacas.status === 'fulfilled' && !resVacas.value.error ? resVacas.value.data : []
-
-        const allClients = [
-            ...(clientsPollos?.map(i => i.cliente) || []),
-            ...(clientsGallinas?.map(v => v.cliente) || []),
-            ...(clientsVacas?.map(p => p.cliente) || [])
-        ]
-
-        const uniqueClients = [...new Set(allClients)]
-            .filter(name => name && name !== 'Consumidor Final')
-            .sort()
-            .slice(0, 20) // Top 20
-
-        return { data: uniqueClients, error: null }
+        // Devolvemos solo los nombres para compatibilidad, 
+        // aunque lo ideal será cambiar los selectores a usar ID -> Nombre.
+        // Dado el requerimiento, la migración pide que sigan guardándose como string en la DB transaccional
+        const uniqueNames = data.map(c => c.nombre)
+        return { data: uniqueNames, error: null }
     } catch (error) {
-        console.error('Error fetching all clients:', error)
+        console.error('Error fetching all clients (names):', error)
         return { data: [], error }
+    }
+}
+
+export const createCliente = async (clienteData) => {
+    try {
+        const { data, error } = await supabase
+            .from('clientes')
+            .insert([clienteData])
+            .select()
+        return { data, error }
+    } catch (error) {
+        console.error('Error creating client:', error)
+        return { data: null, error }
+    }
+}
+
+export const updateCliente = async (id, clienteData) => {
+    try {
+        const { data, error } = await supabase
+            .from('clientes')
+            .update(clienteData)
+            .eq('id', id)
+            .select()
+        return { data, error }
+    } catch (error) {
+        console.error('Error updating client:', error)
+        return { data: null, error }
+    }
+}
+
+export const deleteCliente = async (id) => {
+    try {
+        const { error } = await supabase
+            .from('clientes')
+            .delete()
+            .eq('id', id)
+        return { error }
+    } catch (error) {
+        console.error('Error deleting client:', error)
+        return { error }
     }
 }

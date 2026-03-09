@@ -55,7 +55,7 @@ const Reportes = () => {
 
     return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen text-[#121811] dark:text-white pb-24">
-            <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden max-w-[430px] mx-auto bg-white dark:bg-[#0a1108] shadow-2xl">
+            <div className="relative flex h-auto min-h-screen w-full flex-col group/design-root overflow-x-hidden max-w-7xl mx-auto bg-white dark:bg-[#0a1108] shadow-2xl">
                 {/* TopAppBar */}
                 <div className="flex items-center bg-white dark:bg-[#0a1108] p-4 pb-2 justify-between sticky top-0 z-50 border-b border-[#dde6db] dark:border-[#2a3528]">
                     <Link to="/" className="text-[#121811] dark:text-white flex size-12 shrink-0 items-center cursor-pointer">
@@ -75,11 +75,11 @@ const Reportes = () => {
                             <p className="text-[#688961]">Cargando métricas...</p>
                         </div>
                     ) : (
-                        <>
+                        <div className="flex flex-col gap-6">
                             {/* Resumen de Inventario */}
                             <section className="space-y-3">
                                 <h3 className="font-bold text-lg text-[#121811] dark:text-white px-1">Inventario Actual</h3>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                                     <div className="bg-[#f1f4f0] dark:bg-[#1a2618] p-4 rounded-xl border border-[#dde6db] dark:border-[#2a3528]">
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="material-symbols-outlined text-primary">flutter_dash</span>
@@ -233,7 +233,7 @@ const Reportes = () => {
                                     </ResponsiveContainer>
                                 </div>
                             </section>
-                        </>
+                        </div>
                     )}
                 </div>
 

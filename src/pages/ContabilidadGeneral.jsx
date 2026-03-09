@@ -139,7 +139,7 @@ const ContabilidadGeneral = () => {
         <div className="bg-background-light dark:bg-background-dark text-[#121811] dark:text-white font-display min-h-screen">
             {/* Top Navigation Bar */}
             <header className="sticky top-0 z-50 bg-background-light/80 dark:bg-background-dark/80 ios-blur border-b border-gray-200 dark:border-gray-800">
-                <div className="flex items-center p-4 pb-4 justify-between max-w-md mx-auto">
+                <div className="flex items-center p-4 pb-4 justify-between max-w-7xl mx-auto w-full">
                     <div className="flex items-center gap-3">
                         <Link to="/" className="text-[#121811] dark:text-white material-symbols-outlined cursor-pointer">
                             arrow_back_ios
@@ -157,7 +157,7 @@ const ContabilidadGeneral = () => {
                 </div>
             </header>
 
-            <main className="max-w-md mx-auto pb-24">
+            <main className="max-w-7xl mx-auto pb-24 w-full">
                 {/* Quick Date Filters */}
                 <div className="flex gap-3 p-4 overflow-x-auto no-scrollbar">
                     <button

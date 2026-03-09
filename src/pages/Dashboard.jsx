@@ -59,7 +59,7 @@ const Dashboard = () => {
         <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col">
             {/* TopAppBar */}
             <nav className="sticky top-0 z-50 bg-white/80 dark:bg-background-dark/80 ios-blur border-b border-gray-100 dark:border-white/10">
-                <div className="flex items-center p-4 justify-between max-w-md mx-auto">
+                <div className="flex items-center p-4 justify-between max-w-7xl mx-auto w-full">
                     <div className="flex items-center gap-3">
                         <div className="shrink-0">
                             <div
@@ -86,7 +86,7 @@ const Dashboard = () => {
                 </div>
             </nav>
 
-            <main className="flex-1 max-w-md mx-auto w-full pb-24">
+            <main className="flex-1 max-w-7xl mx-auto w-full pb-24">
                 {/* Date Filters */}
                 <div className="flex gap-3 p-4 overflow-x-auto no-scrollbar">
                     <button
@@ -111,7 +111,7 @@ const Dashboard = () => {
 
                 {/* Stats Section */}
                 <section className="p-4">
-                    <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         {/* Ingresos */}
                         <div className="flex items-center justify-between gap-4 rounded-xl p-5 bg-white dark:bg-white/5 shadow-sm border border-gray-50 dark:border-white/5">
                             <div className="flex flex-col gap-1">
@@ -173,9 +173,9 @@ const Dashboard = () => {
                 </section>
 
                 {/* Accesos Rápidos (Restaurado Discreto) */}
-                <section className="px-4 pb-4">
+                <section className="px-4 pb-4 mt-4">
                     <h3 className="text-[#121811] dark:text-white text-base font-bold mb-3">Accesos Rápidos</h3>
-                    <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
+                    <div className="grid grid-cols-4 sm:flex gap-3 overflow-x-auto no-scrollbar pb-2">
                         <Link to="/pollos" className="flex flex-col items-center gap-2 min-w-[80px]">
                             <div className="size-14 bg-blue-50 dark:bg-blue-900/20 rounded-2xl flex items-center justify-center text-blue-600 dark:text-blue-400">
                                 <span className="material-symbols-outlined text-2xl">flutter_dash</span>
@@ -193,6 +193,12 @@ const Dashboard = () => {
                                 <span className="material-symbols-outlined text-2xl">pets</span>
                             </div>
                             <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Vacas</span>
+                        </Link>
+                        <Link to="/clientes" className="flex flex-col items-center gap-2 min-w-[80px]">
+                            <div className="size-14 bg-pink-50 dark:bg-pink-900/20 rounded-2xl flex items-center justify-center text-pink-600 dark:text-pink-400">
+                                <span className="material-symbols-outlined text-2xl">groups</span>
+                            </div>
+                            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Clientes</span>
                         </Link>
                         <Link to="/contabilidad" className="flex flex-col items-center gap-2 min-w-[80px]">
                             <div className="size-14 bg-purple-50 dark:bg-purple-900/20 rounded-2xl flex items-center justify-center text-purple-600 dark:text-purple-400">

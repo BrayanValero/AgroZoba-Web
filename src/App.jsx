@@ -12,6 +12,7 @@ import VacasDetalle from './pages/VacasDetalle'
 import ContabilidadGeneral from './pages/ContabilidadGeneral'
 import Reportes from './pages/Reportes'
 import Perfil from './pages/Perfil'
+import Clientes from './pages/Clientes'
 
 function App() {
     return (
@@ -64,6 +65,14 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <Reportes />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/clientes"
+                        element={
+                            <ProtectedRoute>
+                                <Clientes />
                             </ProtectedRoute>
                         }
                     />
