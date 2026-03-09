@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getClientes, createCliente, updateCliente, deleteCliente } from '../services/clients'
+import { getClientes, createCliente, updateCliente, deleteCliente, getClientDebts } from '../services/clients'
 import BottomNavigation from '../components/BottomNavigation'
 
 const Clientes = () => {
@@ -10,6 +10,8 @@ const Clientes = () => {
     const [loading, setLoading] = useState(true)
     const [showForm, setShowForm] = useState(false)
     const [editingId, setEditingId] = useState(null)
+    const [activeTab, setActiveTab] = useState('directorio')
+    const [deudas, setDeudas] = useState([])
 
     const [formData, setFormData] = useState({
         nombre: '',
@@ -25,8 +27,15 @@ const Clientes = () => {
     const loadClientes = async () => {
         if (!user) return
         setLoading(true)
-        const { data } = await getClientes(user.id)
-        setClientes(data || [])
+
+        // Load both parallelly
+        const [clientesRes, deudasRes] = await Promise.all([
+            getClientes(user.id),
+            getClientDebts(user.id)
+        ])
+
+        setClientes(clientesRes.data || [])
+        setDeudas(deudasRes.data || [])
         setLoading(false)
     }
 
@@ -84,13 +93,28 @@ const Clientes = () => {
                         <span className="text-[10px] font-bold uppercase tracking-wider text-[#688961]">Directorio</span>
                     </div>
                     <div className="flex w-12 items-center justify-end">
-                        <button
-                            onClick={() => setShowForm(true)}
-                            className="flex items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-primary"
-                        >
-                            <span className="material-symbols-outlined">add_circle</span>
-                        </button>
+                        {activeTab === 'directorio' && (
+                            <button
+                                onClick={() => setShowForm(true)}
+                                className="flex items-center justify-center overflow-hidden rounded-lg h-12 bg-transparent text-primary"
+                            >
+                                <span className="material-symbols-outlined">add_circle</span>
+                            </button>
+                        )}
                     </div>
+                </div>
+
+                {/* Tabs */}
+                <div className="flex border-b border-[#dde6db] dark:border-[#2a3528] bg-white dark:bg-[#0a1108] sticky top-[72px] z-40">
+                    {['directorio', 'deudas'].map((tab) => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === tab ? 'border-primary text-primary' : 'border-transparent text-[#688961]'}`}
+                        >
+                            {tab}
+                        </button>
+                    ))}
                 </div>
 
                 <div className="p-4 flex-1">
@@ -98,68 +122,117 @@ const Clientes = () => {
                         <div className="flex h-full items-center justify-center text-primary py-12">
                             <span className="material-symbols-outlined animate-spin text-4xl">sync</span>
                         </div>
-                    ) : clientes.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-                            <div className="bg-[#f1f4f0] dark:bg-[#1a2618] p-6 rounded-full mb-4">
-                                <span className="material-symbols-outlined text-5xl text-primary">groups</span>
-                            </div>
-                            <h3 className="text-xl font-bold mb-2 text-[#121811] dark:text-white">Sin clientes</h3>
-                            <p className="text-[#688961] text-sm mt-2">Añade tu primer cliente al directorio</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {clientes.map((cliente) => (
-                                <div
-                                    key={cliente.id}
-                                    className="bg-white dark:bg-[#1a2618] rounded-2xl p-5 border border-[#dde6db] dark:border-[#2a3528] shadow-sm flex flex-col justify-between"
-                                >
-                                    <div>
-                                        <div className="flex justify-between items-start mb-3">
-                                            <h3 className="font-bold text-[#121811] dark:text-white text-lg flex items-center gap-2">
-                                                <span className="material-symbols-outlined text-primary">person</span>
-                                                {cliente.nombre}
-                                            </h3>
-                                        </div>
-                                        <div className="space-y-2 text-sm text-[#688961] dark:text-gray-400">
-                                            {cliente.telefono && (
-                                                <p className="flex items-center gap-2">
-                                                    <span className="material-symbols-outlined text-[16px]">call</span>
-                                                    {cliente.telefono}
-                                                </p>
-                                            )}
-                                            {cliente.direccion && (
-                                                <p className="flex items-center gap-2">
-                                                    <span className="material-symbols-outlined text-[16px]">location_on</span>
-                                                    {cliente.direccion}
-                                                </p>
-                                            )}
-                                            {cliente.notas && (
-                                                <p className="flex items-start gap-2 italic mt-2 text-xs">
-                                                    <span className="material-symbols-outlined text-[16px]">notes</span>
-                                                    {cliente.notas}
-                                                </p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-[#dde6db] dark:border-[#2a3528]">
-                                        <button
-                                            onClick={() => handleEdit(cliente)}
-                                            className="p-2 text-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1 text-sm font-semibold"
-                                        >
-                                            <span className="material-symbols-outlined text-[18px]">edit</span>
-                                            Editar
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(cliente.id)}
-                                            className="p-2 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-1 text-sm font-semibold"
-                                        >
-                                            <span className="material-symbols-outlined text-[18px]">delete</span>
-                                            Eliminar
-                                        </button>
-                                    </div>
+                    ) : activeTab === 'directorio' ? (
+                        clientes.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+                                <div className="bg-[#f1f4f0] dark:bg-[#1a2618] p-6 rounded-full mb-4">
+                                    <span className="material-symbols-outlined text-5xl text-primary">groups</span>
                                 </div>
-                            ))}
-                        </div>
+                                <h3 className="text-xl font-bold mb-2 text-[#121811] dark:text-white">Sin clientes</h3>
+                                <p className="text-[#688961] text-sm mt-2">Añade tu primer cliente al directorio</p>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {clientes.map((cliente) => (
+                                    <div
+                                        key={cliente.id}
+                                        className="bg-white dark:bg-[#1a2618] rounded-2xl p-5 border border-[#dde6db] dark:border-[#2a3528] shadow-sm flex flex-col justify-between"
+                                    >
+                                        <div>
+                                            <div className="flex justify-between items-start mb-3">
+                                                <h3 className="font-bold text-[#121811] dark:text-white text-lg flex items-center gap-2">
+                                                    <span className="material-symbols-outlined text-primary">person</span>
+                                                    {cliente.nombre}
+                                                </h3>
+                                            </div>
+                                            <div className="space-y-2 text-sm text-[#688961] dark:text-gray-400">
+                                                {cliente.telefono && (
+                                                    <p className="flex items-center gap-2">
+                                                        <span className="material-symbols-outlined text-[16px]">call</span>
+                                                        {cliente.telefono}
+                                                    </p>
+                                                )}
+                                                {cliente.direccion && (
+                                                    <p className="flex items-center gap-2">
+                                                        <span className="material-symbols-outlined text-[16px]">location_on</span>
+                                                        {cliente.direccion}
+                                                    </p>
+                                                )}
+                                                {cliente.notas && (
+                                                    <p className="flex items-start gap-2 italic mt-2 text-xs">
+                                                        <span className="material-symbols-outlined text-[16px]">notes</span>
+                                                        {cliente.notas}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-end gap-2 mt-4 pt-3 border-t border-[#dde6db] dark:border-[#2a3528]">
+                                            <button
+                                                onClick={() => handleEdit(cliente)}
+                                                className="p-2 text-blue-500 bg-blue-50 dark:bg-blue-900/20 rounded-lg hover:bg-blue-100 transition-colors flex items-center justify-center gap-1 text-sm font-semibold"
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]">edit</span>
+                                                Editar
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(cliente.id)}
+                                                className="p-2 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100 transition-colors flex items-center justify-center gap-1 text-sm font-semibold"
+                                            >
+                                                <span className="material-symbols-outlined text-[18px]">delete</span>
+                                                Eliminar
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )) : (
+                        // Deudas Tab
+                        deudas.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 text-center px-4">
+                                <div className="bg-green-50 dark:bg-green-900/20 p-6 rounded-full mb-4">
+                                    <span className="material-symbols-outlined text-5xl text-green-500">task_alt</span>
+                                </div>
+                                <h3 className="text-xl font-bold mb-2 text-[#121811] dark:text-white">Todo al día</h3>
+                                <p className="text-[#688961] text-sm mt-2">Ningún cliente tiene deudas pendientes.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-xl border border-orange-200 dark:border-orange-800 flex justify-between items-center mb-6">
+                                    <span className="text-orange-800 dark:text-orange-400 font-bold">Total por Cobrar</span>
+                                    <span className="text-orange-600 dark:text-orange-500 font-black text-xl">
+                                        ${deudas.reduce((sum, d) => sum + d.totalDeuda, 0).toLocaleString()}
+                                    </span>
+                                </div>
+
+                                {deudas.map((deuda, idx) => (
+                                    <div key={idx} className="bg-white dark:bg-[#1a2618] rounded-2xl p-5 border border-[#dde6db] dark:border-[#2a3528] shadow-sm">
+                                        <div className="flex justify-between items-center mb-3">
+                                            <h3 className="font-bold text-[#121811] dark:text-white text-lg flex items-center gap-2">
+                                                <span className="material-symbols-outlined text-orange-500">account_balance_wallet</span>
+                                                {deuda.nombre}
+                                            </h3>
+                                            <span className="text-red-500 font-black text-lg">
+                                                ${deuda.totalDeuda.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <div className="space-y-2 mt-4">
+                                            <p className="text-xs font-bold uppercase tracking-wider text-[#688961] border-b border-[#dde6db] dark:border-[#2a3528] pb-1 mb-2">
+                                                Detalle de deudas:
+                                            </p>
+                                            {deuda.detalles.map((det, i) => (
+                                                <div key={i} className="flex justify-between text-sm py-1">
+                                                    <div>
+                                                        <span className="font-semibold text-gray-800 dark:text-gray-200">{det.concepto}</span>
+                                                        <span className="text-xs text-gray-500 dark:text-gray-400 block">{det.fecha} - {det.modulo}</span>
+                                                    </div>
+                                                    <span className="font-bold text-gray-700 dark:text-gray-300">${det.monto.toLocaleString()}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )
                     )}
                 </div>
 

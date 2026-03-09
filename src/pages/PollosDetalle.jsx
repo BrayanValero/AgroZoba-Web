@@ -94,7 +94,13 @@ const PollosDetalle = () => {
         if (!errorIngreso) {
             // Update population
             const nuevaCantidad = produccion.cantidad_actual - cantidad
-            await updateProduccion(id, { cantidad_actual: nuevaCantidad })
+            const updates = { cantidad_actual: nuevaCantidad }
+
+            if (nuevaCantidad <= 0) {
+                updates.estado = 'finalizado'
+            }
+
+            await updateProduccion(id, updates)
 
             setShowVentaModal(false)
             setFormVenta({ cantidad: '', peso_total: '', precio_kilo: 13000, cliente: '', estado_pago: 'debe' })
@@ -224,13 +230,15 @@ const PollosDetalle = () => {
                                 </div>
                             </div>
 
-                            <button
-                                onClick={() => setShowMortalidadModal(true)}
-                                className="w-full mt-4 bg-white dark:bg-transparent border border-red-500/30 text-red-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-50 transition-all"
-                            >
-                                <span className="material-symbols-outlined text-lg">skull</span>
-                                Reportar Mortalidad
-                            </button>
+                            {produccion.estado === 'activo' && (
+                                <button
+                                    onClick={() => setShowMortalidadModal(true)}
+                                    className="w-full mt-4 bg-white dark:bg-transparent border border-red-500/30 text-red-500 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-red-50 transition-all"
+                                >
+                                    <span className="material-symbols-outlined text-lg">skull</span>
+                                    Reportar Mortalidad
+                                </button>
+                            )}
                         </div>
 
                         <div className="bg-primary/10 rounded-2xl p-4 border border-primary/20">

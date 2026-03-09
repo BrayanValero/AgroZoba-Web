@@ -163,7 +163,14 @@ const PollosEngorde = () => {
         if (!error) {
             // Actualizar cantidad actual del lote
             const nuevaCantidad = selectedProduccion.cantidad_actual - cantidad
-            await updateProduccion(selectedProduccion.id, { cantidad_actual: nuevaCantidad })
+            const updates = { cantidad_actual: nuevaCantidad }
+
+            // Auto-finalizar si se vendieron todos
+            if (nuevaCantidad <= 0) {
+                updates.estado = 'finalizado'
+            }
+
+            await updateProduccion(selectedProduccion.id, updates)
 
             setShowFormVenta(false)
             setFormVenta({
@@ -270,6 +277,7 @@ const PollosEngorde = () => {
                                                 setShowFormVenta(true);
                                             }}
                                             className="flex-1 bg-primary text-black font-bold py-2 px-3 rounded-lg hover:bg-opacity-90 transition-all flex items-center justify-center gap-1"
+                                            disabled={prod.estado !== 'activo'}
                                         >
                                             <span className="material-symbols-outlined text-sm">shopping_basket</span>
                                             <span className="text-sm">Venta</span>
@@ -281,11 +289,30 @@ const PollosEngorde = () => {
                                                 setShowFormGasto(true);
                                             }}
                                             className="flex-1 bg-[#dde6db] dark:bg-[#2a3528] text-[#121811] dark:text-white font-bold py-2 px-3 rounded-lg hover:bg-opacity-90 transition-all flex items-center justify-center gap-1"
+                                            disabled={prod.estado !== 'activo'}
                                         >
                                             <span className="material-symbols-outlined text-sm">receipt_long</span>
                                             <span className="text-sm">Gasto</span>
                                         </button>
                                     </div>
+
+                                    {prod.estado === 'activo' && (
+                                        <div className="mt-3">
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (window.confirm(`¿Estás seguro de finalizar el lote "${prod.nombre}"? Ya no podrás registrarle más ventas ni gastos.`)) {
+                                                        await updateProduccion(prod.id, { estado: 'finalizado' });
+                                                        loadProducciones();
+                                                    }
+                                                }}
+                                                className="w-full border-2 border-red-500 text-red-500 font-bold py-2 px-3 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-all flex items-center justify-center gap-1"
+                                            >
+                                                <span className="material-symbols-outlined text-sm">flag</span>
+                                                <span className="text-sm">Finalizar Lote</span>
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -297,7 +324,7 @@ const PollosEngorde = () => {
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-primary/30">
                             <div className="flex justify-between items-center mb-6">
-                                <h3 className="font-bold text-lg text-[#121811] dark:text-white">Nueva Producción</h3>
+                                <h3 className="font-bold text-lg text-[#121811] dark:text-white">Nuevo Lote de Pollos</h3>
                                 <button onClick={() => setShowForm(false)}>
                                     <span className="material-symbols-outlined text-gray-400">close</span>
                                 </button>
@@ -314,19 +341,9 @@ const PollosEngorde = () => {
                                         required
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Galpón</label>
-                                    <input
-                                        type="text"
-                                        value={formData.galpon}
-                                        onChange={(e) => setFormData({ ...formData, galpon: e.target.value })}
-                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                        placeholder="Ej: Galpón Norte"
-                                    />
-                                </div>
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Cantidad</label>
+                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Cantidad Pollos</label>
                                         <input
                                             type="number"
                                             value={formData.cantidad_inicial}
@@ -337,7 +354,7 @@ const PollosEngorde = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Precio por Pollo</label>
+                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Precio Compra/Unid.</label>
                                         <input
                                             type="number"
                                             value={formData.precio_unitario}
@@ -349,7 +366,7 @@ const PollosEngorde = () => {
                                     </div>
                                 </div>
 
-                                <div className="bg-primary/10 p-3 rounded-lg flex justify-between items-center">
+                                <div className="bg-primary/10 p-3 rounded-lg flex justify-between items-center mt-6">
                                     <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Costo Inicial:</span>
                                     <span className="text-xl font-black text-primary">
                                         {formatCurrency((formData.cantidad_inicial && formData.precio_unitario)
@@ -360,9 +377,9 @@ const PollosEngorde = () => {
 
                                 <button
                                     type="submit"
-                                    className="w-full bg-primary text-black font-black px-6 py-3 rounded-lg shadow-md hover:bg-opacity-90 transition-all"
+                                    className="w-full bg-primary text-black font-black px-6 py-3 rounded-lg shadow-md hover:bg-opacity-90 transition-all mt-4"
                                 >
-                                    Guardar Producción
+                                    Crear Lote
                                 </button>
                             </form>
                         </div>
@@ -462,7 +479,7 @@ const PollosEngorde = () => {
                                             list="clients-list"
                                         />
                                         <datalist id="clients-list">
-                                            {recentClients.map(c => <option key={c} value={c} />)}
+                                            {recentClients.map(c => <option key={c.id || c.nombre} value={c.nombre} />)}
                                         </datalist>
                                     </div>
                                     <div>
