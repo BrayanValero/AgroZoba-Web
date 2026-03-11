@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getVacas, createVaca, deleteVaca, createProduccion } from '../services/vacas'
+import { getVacas, createVaca, deleteVaca, createProduccion, createGasto } from '../services/vacas'
 import { getAllRecentClients } from '../services/clients'
 import { formatCurrency } from '../utils/formatters'
 import BottomNavigation from '../components/BottomNavigation'
@@ -13,6 +13,7 @@ const VacasLecheras = () => {
     const [loading, setLoading] = useState(true)
     const [showFormVaca, setShowFormVaca] = useState(false)
     const [showFormProduccion, setShowFormProduccion] = useState(false)
+    const [showFormGasto, setShowFormGasto] = useState(false)
     const [selectedVaca, setSelectedVaca] = useState(null)
     const [filtroEstado, setFiltroEstado] = useState('todas')
     const [recentClients, setRecentClients] = useState([])
@@ -27,6 +28,12 @@ const VacasLecheras = () => {
         precio_por_litro: 3500,
         estado_pago: 'pagado',
         cliente: ''
+    })
+
+    const [formGasto, setFormGasto] = useState({
+        concepto: '',
+        monto: '',
+        categoria: 'alimento'
     })
 
     useEffect(() => {
@@ -70,7 +77,7 @@ const VacasLecheras = () => {
         const montoTotal = formProduccion.litros * formProduccion.precio_por_litro
 
         const { error } = await createProduccion({
-            vaca_id: selectedVaca.id,
+            vaca_id: selectedVaca?.id || null,
             litros: parseFloat(formProduccion.litros),
             precio_por_litro: parseFloat(formProduccion.precio_por_litro),
             monto_total: montoTotal,
@@ -92,6 +99,25 @@ const VacasLecheras = () => {
             setSelectedVaca(null)
             loadVacas()
             loadClients()
+        }
+    }
+
+    const handleSubmitGasto = async (e) => {
+        e.preventDefault()
+        const { error } = await createGasto({
+            vaca_id: selectedVaca?.id || null,
+            concepto: formGasto.concepto,
+            monto: parseFloat(formGasto.monto),
+            categoria: formGasto.categoria,
+            user_id: user.id,
+            fecha: new Date().toISOString().split('T')[0]
+        })
+
+        if (!error) {
+            setShowFormGasto(false)
+            setFormGasto({ concepto: '', monto: '', categoria: 'alimento' })
+            setSelectedVaca(null)
+            loadVacas()
         }
     }
 
@@ -145,8 +171,29 @@ const VacasLecheras = () => {
                         </h2>
                         <div className="flex w-12 items-center justify-end">
                             <button
+                                onClick={() => {
+                                    setSelectedVaca(null)
+                                    setShowFormProduccion(true)
+                                }}
+                                className="flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-blue-100 text-blue-600 transition-transform active:scale-95"
+                                title="Vender Leche General"
+                            >
+                                <span className="material-symbols-outlined">water_drop</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setSelectedVaca(null)
+                                    setShowFormGasto(true)
+                                }}
+                                className="flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-red-100 text-red-600 transition-transform active:scale-95"
+                                title="Registrar Gasto General"
+                            >
+                                <span className="material-symbols-outlined">payments</span>
+                            </button>
+                            <button
                                 onClick={() => setShowFormVaca(true)}
                                 className="flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-primary text-black transition-transform active:scale-95"
+                                title="Añadir Vaca"
                             >
                                 <span className="material-symbols-outlined text-black">add</span>
                             </button>
@@ -240,19 +287,6 @@ const VacasLecheras = () => {
                                         >
                                             Eliminar
                                         </button>
-                                        {vaca.estado === 'produccion' && (
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedVaca(vaca)
-                                                    setShowFormProduccion(true)
-                                                }}
-                                                className="flex items-center justify-center px-3 py-1 bg-primary/10 text-primary rounded-lg text-xs font-bold gap-1"
-                                            >
-                                                <span className="material-symbols-outlined text-xs">shopping_basket</span>
-                                                Vender Leche
-                                            </button>
-                                        )}
                                     </div>
                                 </div>
                                 <div
@@ -310,13 +344,13 @@ const VacasLecheras = () => {
                 )}
 
                 {/* Form Modal: Registrar Producción */}
-                {showFormProduccion && selectedVaca && (
+                {showFormProduccion && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full">
                             <div className="flex justify-between items-center mb-4">
                                 <div>
                                     <h3 className="text-xl font-bold text-gray-900 dark:text-white">Registrar Venta de Leche</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-400">Vaca: {selectedVaca.nombre}</p>
+                                    {selectedVaca && <p className="text-sm text-gray-600 dark:text-gray-400">Vaca: {selectedVaca.nombre}</p>}
                                 </div>
                                 <button onClick={() => {
                                     setShowFormProduccion(false)
@@ -387,6 +421,70 @@ const VacasLecheras = () => {
                                         Registrar
                                     </button>
                                 </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal Nuevo Gasto */}
+                {showFormGasto && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-primary/30">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h3 className="font-bold text-lg text-[#121811] dark:text-white">Nuevo Gasto</h3>
+                                    {selectedVaca && <p className="text-sm text-gray-600 dark:text-gray-400">Vaca: {selectedVaca.nombre}</p>}
+                                </div>
+                                <button onClick={() => {
+                                    setShowFormGasto(false)
+                                    setSelectedVaca(null)
+                                }}>
+                                    <span className="material-symbols-outlined text-gray-400">close</span>
+                                </button>
+                            </div>
+                            <form onSubmit={handleSubmitGasto} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Concepto</label>
+                                    <input
+                                        type="text"
+                                        value={formGasto.concepto}
+                                        onChange={(e) => setFormGasto({ ...formGasto, concepto: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
+                                        placeholder="Ej: Alimento concentrado"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Categoría</label>
+                                    <select
+                                        value={formGasto.categoria}
+                                        onChange={(e) => setFormGasto({ ...formGasto, categoria: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
+                                    >
+                                        <option value="alimento">Alimento</option>
+                                        <option value="medicina">Medicina/Vitaminas</option>
+                                        <option value="mano_obra">Mano de Obra</option>
+                                        <option value="servicios">Servicios</option>
+                                        <option value="otros">Otros</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Monto</label>
+                                    <input
+                                        type="number"
+                                        value={formGasto.monto}
+                                        onChange={(e) => setFormGasto({ ...formGasto, monto: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-lg font-bold text-[#121811] dark:text-white"
+                                        placeholder="$0.00"
+                                        required
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-primary text-black font-black px-6 py-3 rounded-lg shadow-md hover:bg-opacity-90 transition-all"
+                                >
+                                    Registrar Gasto
+                                </button>
                             </form>
                         </div>
                     </div>

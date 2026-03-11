@@ -127,6 +127,25 @@ export const deleteVaca = async (id) => {
 }
 
 /**
+ * Obtener todos los gastos de vacas (generales y específicos)
+ */
+export const getGastosGenerales = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('gastos_vacas')
+            .select('*')
+            .eq('user_id', userId)
+            .order('fecha', { ascending: false })
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error fetching gastos generales:', error)
+        return { data: null, error }
+    }
+}
+
+/**
  * Obtener gastos de una vaca
  */
 export const getGastosByVaca = async (vacaId) => {
@@ -164,6 +183,25 @@ export const createGasto = async (gastoData) => {
         return { data, error: null }
     } catch (error) {
         console.error('Error creating gasto:', error)
+        return { data: null, error }
+    }
+}
+
+/**
+ * Obtener toda la producción de leche
+ */
+export const getProduccionGeneral = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('produccion_leche')
+            .select('*')
+            .eq('user_id', userId)
+            .order('fecha', { ascending: false })
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error fetching produccion general:', error)
         return { data: null, error }
     }
 }
