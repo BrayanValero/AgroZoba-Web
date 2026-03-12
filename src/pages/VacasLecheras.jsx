@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getVacas, createVaca, deleteVaca, createProduccion, createGasto } from '../services/vacas'
+import { getVacas, createVaca, deleteVaca, createProduccion, createGasto, uploadVacaPhoto } from '../services/vacas'
 import { getAllRecentClients } from '../services/clients'
 import { formatCurrency } from '../utils/formatters'
 import BottomNavigation from '../components/BottomNavigation'
@@ -20,8 +20,12 @@ const VacasLecheras = () => {
 
     const [formVaca, setFormVaca] = useState({
         nombre: '',
-        estado: 'produccion'
+        estado: 'produccion',
+        codigo: ''
     })
+    const [vacaFile, setVacaFile] = useState(null)
+    const [vacaPreview, setVacaPreview] = useState(null)
+    const [isSaving, setIsSaving] = useState(false)
 
     const [formProduccion, setFormProduccion] = useState({
         litros: '',
@@ -57,8 +61,26 @@ const VacasLecheras = () => {
 
     const handleSubmitVaca = async (e) => {
         e.preventDefault()
+        setIsSaving(true)
+        
+        let foto_url = null
+        if (vacaFile) {
+            const { data, error: uploadError } = await uploadVacaPhoto(vacaFile, user.id)
+            if (uploadError) {
+                if (uploadError.message?.includes('Bucket not found')) {
+                    alert('Error: No se encontró el contenedor "vacas" en Supabase. Por favor, créalo en la sección Storage de tu panel de Supabase.')
+                } else {
+                    alert('Error al subir la imagen: ' + uploadError.message)
+                }
+                setIsSaving(false)
+                return
+            }
+            foto_url = data
+        }
+
         const { error } = await createVaca({
             ...formVaca,
+            foto_url,
             user_id: user.id
         })
 
@@ -66,9 +88,30 @@ const VacasLecheras = () => {
             setShowFormVaca(false)
             setFormVaca({
                 nombre: '',
-                estado: 'produccion'
+                codigo: '',
+                estado: 'produccion',
+                fecha_nacimiento: '',
+                raza: '',
+                partos: 0,
+                vacunas: '',
+                notas: ''
             })
+            setVacaFile(null)
+            setVacaPreview(null)
             loadVacas()
+        }
+        setIsSaving(false)
+    }
+
+    const handleFileChange = (e) => {
+        const file = e.target.files[0]
+        if (file) {
+            setVacaFile(file)
+            const reader = new FileReader()
+            reader.onloadend = () => {
+                setVacaPreview(reader.result)
+            }
+            reader.readAsDataURL(file)
         }
     }
 
@@ -167,39 +210,49 @@ const VacasLecheras = () => {
                             <span className="material-symbols-outlined">arrow_back_ios</span>
                         </Link>
                         <h2 className="text-gray-900 dark:text-white text-lg font-bold leading-tight tracking-[-0.015em] flex-1 text-center">
-                            Vacas Lecheras
+                            Gestión de Vacas
                         </h2>
                         <div className="flex w-12 items-center justify-end">
-                            <button
-                                onClick={() => {
-                                    setSelectedVaca(null)
-                                    setShowFormProduccion(true)
-                                }}
-                                className="flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-blue-100 text-blue-600 transition-transform active:scale-95"
-                                title="Vender Leche General"
-                            >
-                                <span className="material-symbols-outlined">water_drop</span>
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setSelectedVaca(null)
-                                    setShowFormGasto(true)
-                                }}
-                                className="flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-red-100 text-red-600 transition-transform active:scale-95"
-                                title="Registrar Gasto General"
-                            >
-                                <span className="material-symbols-outlined">payments</span>
-                            </button>
-                            <button
-                                onClick={() => setShowFormVaca(true)}
-                                className="flex size-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-primary text-black transition-transform active:scale-95"
-                                title="Añadir Vaca"
-                            >
-                                <span className="material-symbols-outlined text-black">add</span>
-                            </button>
                         </div>
                     </div>
                 </header>
+
+                {/* New Action Bar (Premium) */}
+                <div className="px-4 pt-6 grid grid-cols-3 gap-4">
+                    <button
+                        onClick={() => {
+                            setSelectedVaca(null)
+                            setShowFormProduccion(true)
+                        }}
+                        className="flex flex-col items-center justify-center gap-3 p-4 rounded-3xl bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-100 dark:border-blue-800 transition-all active:scale-95 hover:shadow-xl hover:border-blue-300 dark:hover:border-blue-700 group"
+                    >
+                        <div className="size-14 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-xl shadow-blue-500/40 group-hover:rotate-6 transition-transform">
+                            <span className="material-symbols-outlined text-3xl">water_drop</span>
+                        </div>
+                        <span className="text-[11px] font-black text-blue-800 dark:text-blue-300 uppercase tracking-tight text-center leading-none">Vender<br/>Leche</span>
+                    </button>
+                    <button
+                        onClick={() => {
+                            setSelectedVaca(null)
+                            setShowFormGasto(true)
+                        }}
+                        className="flex flex-col items-center justify-center gap-3 p-4 rounded-3xl bg-red-50 dark:bg-red-900/20 border-2 border-red-100 dark:border-red-800 transition-all active:scale-95 hover:shadow-xl hover:border-red-300 dark:hover:border-red-700 group"
+                    >
+                        <div className="size-14 rounded-2xl bg-red-600 flex items-center justify-center text-white shadow-xl shadow-red-500/40 group-hover:-rotate-6 transition-transform">
+                            <span className="material-symbols-outlined text-3xl">payments</span>
+                        </div>
+                        <span className="text-[11px] font-black text-red-800 dark:text-red-300 uppercase tracking-tight text-center leading-none">Registrar<br/>Gasto</span>
+                    </button>
+                    <button
+                        onClick={() => setShowFormVaca(true)}
+                        className="flex flex-col items-center justify-center gap-3 p-4 rounded-3xl bg-primary/10 dark:bg-primary/5 border-2 border-primary/20 dark:border-primary/10 transition-all active:scale-95 hover:shadow-xl hover:border-primary/40 group"
+                    >
+                        <div className="size-14 rounded-2xl bg-primary flex items-center justify-center text-black shadow-xl shadow-primary/40 group-hover:scale-110 transition-transform">
+                            <span className="material-symbols-outlined text-3xl font-bold">add</span>
+                        </div>
+                        <span className="text-[11px] font-black text-primary-dark dark:text-primary uppercase tracking-tight text-center leading-none">Añadir<br/>Vaca</span>
+                    </button>
+                </div>
 
                 {/* SearchBar */}
                 <div className="px-4 py-4">
@@ -290,9 +343,14 @@ const VacasLecheras = () => {
                                     </div>
                                 </div>
                                 <div
-                                    className="w-32 h-32 bg-center bg-no-repeat bg-cover rounded-xl shrink-0"
-                                    style={{ backgroundImage: 'url("https://lh3.googleusercontent.com/aida-public/AB6AXuDKADJC-8BogGBeeOOptFZFia1aYoaH2-CqhfiKIx33V5C2i3lz-VRbaD_zaCyBLFDs3YH1PPkYmPisivzed5k3VxlNTA8N4D-O5wujtL_qtw6zaXAQBc-6MwoiTWxar92FmiD_X7OT6tEdX8pTkvRhYwqiYsviCFp9vakHICNE5feyiFiCUxuHUxskjVFLC9q2pjG6r9TELy__9yH1QozwZBGeH-grwUYbxU_ze10E5sfOMhPfeiJm_iczqFhlp10eDagnWYsdJIXh")' }}
-                                ></div>
+                                    className="w-32 h-32 bg-center bg-no-repeat bg-cover rounded-xl shrink-0 bg-gray-100 dark:bg-gray-800 flex items-center justify-center overflow-hidden"
+                                >
+                                    {vaca.foto_url ? (
+                                        <img src={vaca.foto_url} alt={vaca.nombre} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="material-symbols-outlined text-gray-400 text-4xl">pets</span>
+                                    )}
+                                </div>
                             </div>
                         ))
                     )}
@@ -308,35 +366,121 @@ const VacasLecheras = () => {
                                     <span className="material-symbols-outlined text-gray-400">close</span>
                                 </button>
                             </div>
-                            <form onSubmit={handleSubmitVaca} className="space-y-4">
+                            <form onSubmit={handleSubmitVaca} className="space-y-4 max-h-[75vh] overflow-y-auto no-scrollbar pr-1">
+                                <div className="flex flex-col items-center mb-6">
+                                    <p className="text-xs font-bold text-[#688961] uppercase mb-3 text-center">Foto de la Vaca</p>
+                                    <label className="relative cursor-pointer group">
+                                        <div className="size-32 rounded-3xl border-4 border-dashed border-primary/30 dark:border-primary/20 flex items-center justify-center overflow-hidden bg-gray-50 dark:bg-gray-900 hover:border-primary hover:bg-primary/5 transition-all shadow-inner">
+                                            {vacaPreview ? (
+                                                <img src={vacaPreview} alt="Preview" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="flex flex-col items-center gap-1">
+                                                    <span className="material-symbols-outlined text-gray-400 text-4xl group-hover:text-primary group-hover:scale-110 transition-all">add_a_photo</span>
+                                                    <span className="text-[10px] font-black text-gray-400 uppercase group-hover:text-primary transition-colors">Seleccionar</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                                    </label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-[#688961] uppercase mb-1 ml-1">Nombre</label>
+                                        <input
+                                            type="text"
+                                            value={formVaca.nombre}
+                                            onChange={(e) => setFormVaca({ ...formVaca, nombre: e.target.value })}
+                                            className="w-full bg-gray-50 dark:bg-[#1a2618] border border-gray-100 dark:border-[#2a3528] rounded-2xl p-3 text-sm font-bold"
+                                            placeholder="Ej: Mariposa"
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-[#688961] uppercase mb-1 ml-1">Código / Arete</label>
+                                        <input
+                                            type="text"
+                                            value={formVaca.codigo}
+                                            onChange={(e) => setFormVaca({ ...formVaca, codigo: e.target.value })}
+                                            className="w-full bg-gray-50 dark:bg-[#1a2618] border border-gray-100 dark:border-[#2a3528] rounded-2xl p-3 text-sm font-bold"
+                                            placeholder="V-001"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-[#688961] uppercase mb-1 ml-1">Raza</label>
+                                        <input
+                                            type="text"
+                                            value={formVaca.raza}
+                                            onChange={(e) => setFormVaca({ ...formVaca, raza: e.target.value })}
+                                            className="w-full bg-gray-50 dark:bg-[#1a2618] border border-gray-100 dark:border-[#2a3528] rounded-2xl p-3 text-sm font-bold"
+                                            placeholder="Ej: Gyr"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-[#688961] uppercase mb-1 ml-1">Estado</label>
+                                        <select
+                                            value={formVaca.estado}
+                                            onChange={(e) => setFormVaca({ ...formVaca, estado: e.target.value })}
+                                            className="w-full bg-gray-50 dark:bg-[#1a2618] border border-gray-100 dark:border-[#2a3528] rounded-2xl p-3 text-sm font-bold"
+                                        >
+                                            <option value="produccion">En Producción</option>
+                                            <option value="seca">Seca</option>
+                                            <option value="enferma">Enferma</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black text-[#688961] uppercase mb-1 ml-1">Fecha Nacimiento</label>
+                                        <input
+                                            type="date"
+                                            value={formVaca.fecha_nacimiento}
+                                            onChange={(e) => setFormVaca({ ...formVaca, fecha_nacimiento: e.target.value })}
+                                            className="w-full bg-gray-50 dark:bg-[#1a2618] border border-gray-100 dark:border-[#2a3528] rounded-2xl p-3 text-sm font-bold"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black text-[#688961] uppercase mb-1 ml-1">Número de Partos</label>
+                                        <input
+                                            type="number"
+                                            value={formVaca.partos}
+                                            onChange={(e) => setFormVaca({ ...formVaca, partos: parseInt(e.target.value) || 0 })}
+                                            className="w-full bg-gray-50 dark:bg-[#1a2618] border border-gray-100 dark:border-[#2a3528] rounded-2xl p-3 text-sm font-bold"
+                                        />
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Nombre</label>
-                                    <input
-                                        type="text"
-                                        value={formVaca.nombre}
-                                        onChange={(e) => setFormVaca({ ...formVaca, nombre: e.target.value })}
-                                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-gray-900 dark:text-white"
-                                        placeholder="Ej: Lola"
-                                        required
+                                    <label className="block text-[10px] font-black text-[#688961] uppercase mb-1 ml-1">Esquema de Vacunas</label>
+                                    <textarea
+                                        value={formVaca.vacunas}
+                                        onChange={(e) => setFormVaca({ ...formVaca, vacunas: e.target.value })}
+                                        className="w-full bg-gray-50 dark:bg-[#1a2618] border border-gray-100 dark:border-[#2a3528] rounded-2xl p-3 text-sm font-medium"
+                                        rows="2"
+                                        placeholder="Pesta, Aftosa, Carbon..."
                                     />
                                 </div>
+
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Estado</label>
-                                    <select
-                                        value={formVaca.estado}
-                                        onChange={(e) => setFormVaca({ ...formVaca, estado: e.target.value })}
-                                        className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3 text-gray-900 dark:text-white"
-                                    >
-                                        <option value="produccion">Producción</option>
-                                        <option value="seca">Seca</option>
-                                        <option value="enferma">Enferma</option>
-                                    </select>
+                                    <label className="block text-[10px] font-black text-[#688961] uppercase mb-1 ml-1">Notas</label>
+                                    <textarea
+                                        value={formVaca.notas}
+                                        onChange={(e) => setFormVaca({ ...formVaca, notas: e.target.value })}
+                                        className="w-full bg-gray-50 dark:bg-[#1a2618] border border-gray-100 dark:border-[#2a3528] rounded-2xl p-3 text-sm font-medium"
+                                        rows="2"
+                                        placeholder="Características especiales..."
+                                    />
                                 </div>
                                 <button
                                     type="submit"
-                                    className="w-full bg-primary text-black font-bold py-3 rounded-xl hover:bg-opacity-90 transition-all"
+                                    disabled={isSaving}
+                                    className="w-full bg-primary text-black font-bold py-3 rounded-xl hover:bg-opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                                 >
-                                    Agregar Vaca
+                                    {isSaving && <span className="size-4 border-2 border-black/20 border-t-black rounded-full animate-spin"></span>}
+                                    {isSaving ? 'Guardando...' : 'Agregar Vaca'}
                                 </button>
                             </form>
                         </div>

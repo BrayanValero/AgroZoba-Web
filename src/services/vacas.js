@@ -249,6 +249,32 @@ export const createProduccion = async (produccionData) => {
 }
 
 /**
+ * Subir foto de vaca a Supabase Storage
+ */
+export const uploadVacaPhoto = async (file, userId) => {
+    try {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${userId}/${crypto.randomUUID()}.${fileExt}`
+        const filePath = `photos/${fileName}`
+
+        const { error: uploadError } = await supabase.storage
+            .from('vacas')
+            .upload(filePath, file)
+
+        if (uploadError) throw uploadError
+
+        const { data: { publicUrl } } = supabase.storage
+            .from('vacas')
+            .getPublicUrl(filePath)
+
+        return { data: publicUrl, error: null }
+    } catch (error) {
+        console.error('Error uploading photo:', error)
+        return { data: null, error }
+    }
+}
+
+/**
  * Actualizar producción de leche
  */
 export const updateProduccionLeche = async (id, updates) => {

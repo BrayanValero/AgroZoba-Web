@@ -55,3 +55,23 @@ export const calculatePercentage = (part, total) => {
     if (!total || total === 0) return 0
     return ((part / total) * 100).toFixed(2)
 }
+/**
+ * Calcular edad desde una fecha de nacimiento
+ */
+export const calculateAge = (birthDate) => {
+    if (!birthDate) return 'N/A'
+    const today = new Date()
+    const birth = new Date(birthDate)
+    
+    let years = today.getFullYear() - birth.getFullYear()
+    let months = today.getMonth() - birth.getMonth()
+    
+    if (months < 0 || (months === 0 && today.getDate() < birth.getDate())) {
+        years--
+        months += 12
+    }
+    
+    if (years === 0) return `${months} meses`
+    if (months === 0) return `${years} años`
+    return `${years} años, ${months} meses`
+}
