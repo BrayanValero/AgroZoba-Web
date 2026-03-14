@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getProducciones, createProduccion, updateProduccion, deleteProduccion, createGasto, createIngreso } from '../services/pollos'
+import { getProducciones, createProduccion, updateProduccion, deleteProduccion, createGasto, createIngreso, createAporte } from '../services/pollos'
 import { getAllRecentClients } from '../services/clients'
 import { formatCurrency, formatDateShort } from '../utils/formatters'
 import BottomNavigation from '../components/BottomNavigation'
@@ -16,6 +16,7 @@ const PollosEngorde = () => {
     const [showForm, setShowForm] = useState(false)
     const [showFormGasto, setShowFormGasto] = useState(false)
     const [showFormVenta, setShowFormVenta] = useState(false)
+    const [showFormAporte, setShowFormAporte] = useState(false)
     const [selectedProduccion, setSelectedProduccion] = useState(null)
 
     // Forms
@@ -41,6 +42,12 @@ const PollosEngorde = () => {
         cliente: '',
         estado_pago: 'debe',
         monto_total: ''
+    })
+
+    const [formAporte, setFormAporte] = useState({
+        concepto: '',
+        monto: '',
+        socios: 'Brayan, Zory'
     })
 
     const [recentClients, setRecentClients] = useState([])
@@ -123,6 +130,25 @@ const PollosEngorde = () => {
         if (!error) {
             setShowFormGasto(false)
             setFormGasto({ concepto: '', monto: '', categoria: 'alimento' })
+            setSelectedProduccion(null)
+            loadProducciones()
+        }
+    }
+
+    const handleSubmitAporte = async (e) => {
+        e.preventDefault()
+        const { error } = await createAporte({
+            produccion_id: selectedProduccion.id,
+            concepto: formAporte.concepto,
+            monto: parseFloat(formAporte.monto),
+            socios: formAporte.socios,
+            user_id: user.id,
+            fecha: new Date().toISOString().split('T')[0]
+        })
+
+        if (!error) {
+            setShowFormAporte(false)
+            setFormAporte({ concepto: '', monto: '', socios: 'Brayan, Zory' })
             setSelectedProduccion(null)
             loadProducciones()
         }
@@ -293,6 +319,18 @@ const PollosEngorde = () => {
                                         >
                                             <span className="material-symbols-outlined text-sm">receipt_long</span>
                                             <span className="text-sm">Gasto</span>
+                                        </button>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setSelectedProduccion(prod);
+                                                setShowFormAporte(true);
+                                            }}
+                                            className="flex-1 bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 font-bold py-2 px-3 rounded-lg hover:bg-opacity-90 transition-all flex items-center justify-center gap-1"
+                                            disabled={prod.estado !== 'activo'}
+                                        >
+                                            <span className="material-symbols-outlined text-sm">potted_plant</span>
+                                            <span className="text-sm">Aporte</span>
                                         </button>
                                     </div>
 
@@ -542,6 +580,66 @@ const PollosEngorde = () => {
                                         Registrar
                                     </button>
                                 </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Form Modal: Nuevo Aporte */}
+                {showFormAporte && selectedProduccion && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-orange-200 dark:border-orange-900/30">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h3 className="font-bold text-lg text-[#121811] dark:text-white">Registrar Aporte</h3>
+                                    <p className="text-xs text-[#688961]">{selectedProduccion.nombre}</p>
+                                </div>
+                                <button onClick={() => {
+                                    setShowFormAporte(false)
+                                    setSelectedProduccion(null)
+                                }}>
+                                    <span className="material-symbols-outlined text-gray-400">close</span>
+                                </button>
+                            </div>
+                            <form onSubmit={handleSubmitAporte} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Concepto</label>
+                                    <input
+                                        type="text"
+                                        value={formAporte.concepto}
+                                        onChange={(e) => setFormAporte({ ...formAporte, concepto: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
+                                        placeholder="Ej: Aporte capital para granos"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Monto</label>
+                                    <input
+                                        type="number"
+                                        value={formAporte.monto}
+                                        onChange={(e) => setFormAporte({ ...formAporte, monto: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-lg font-bold text-[#121811] dark:text-white"
+                                        placeholder="$0.00"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Socio(s) que aportan</label>
+                                    <input
+                                        type="text"
+                                        value={formAporte.socios}
+                                        onChange={(e) => setFormAporte({ ...formAporte, socios: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
+                                        placeholder="Ej: Socio A, Socio B"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-orange-500 text-white font-black px-6 py-3 rounded-lg shadow-md hover:bg-opacity-90 transition-all"
+                                >
+                                    Registrar Aporte
+                                </button>
                             </form>
                         </div>
                     </div>

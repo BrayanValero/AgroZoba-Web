@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getVacas, createVaca, deleteVaca, createProduccion, createGasto, uploadVacaPhoto } from '../services/vacas'
+import { getVacas, createVaca, deleteVaca, createProduccion, createGasto, uploadVacaPhoto, createAporte } from '../services/vacas'
 import { getAllRecentClients } from '../services/clients'
 import { formatCurrency } from '../utils/formatters'
 import BottomNavigation from '../components/BottomNavigation'
@@ -14,6 +14,7 @@ const VacasLecheras = () => {
     const [showFormVaca, setShowFormVaca] = useState(false)
     const [showFormProduccion, setShowFormProduccion] = useState(false)
     const [showFormGasto, setShowFormGasto] = useState(false)
+    const [showFormAporte, setShowFormAporte] = useState(false)
     const [selectedVaca, setSelectedVaca] = useState(null)
     const [filtroEstado, setFiltroEstado] = useState('todas')
     const [recentClients, setRecentClients] = useState([])
@@ -38,6 +39,12 @@ const VacasLecheras = () => {
         concepto: '',
         monto: '',
         categoria: 'alimento'
+    })
+
+    const [formAporte, setFormAporte] = useState({
+        concepto: '',
+        monto: '',
+        socios: 'Brayan, Zory'
     })
 
     useEffect(() => {
@@ -171,6 +178,25 @@ const VacasLecheras = () => {
         }
     }
 
+    const handleSubmitAporte = async (e) => {
+        e.preventDefault()
+        const { error } = await createAporte({
+            vaca_id: selectedVaca?.id || null,
+            concepto: formAporte.concepto,
+            monto: parseFloat(formAporte.monto),
+            socios: formAporte.socios,
+            user_id: user.id,
+            fecha: new Date().toISOString().split('T')[0]
+        })
+
+        if (!error) {
+            setShowFormAporte(false)
+            setFormAporte({ concepto: '', monto: '', socios: 'Brayan, Zory' })
+            setSelectedVaca(null)
+            loadVacas()
+        }
+    }
+
     const calcularTotalProduccion = () => {
         if (!formProduccion.litros || !formProduccion.precio_por_litro) return 0
         return formProduccion.litros * formProduccion.precio_por_litro
@@ -244,13 +270,34 @@ const VacasLecheras = () => {
                         <span className="text-[11px] font-black text-red-800 dark:text-red-300 uppercase tracking-tight text-center leading-none">Registrar<br/>Gasto</span>
                     </button>
                     <button
-                        onClick={() => setShowFormVaca(true)}
+                        onClick={() => navigate('/vacas/contabilidad')}
                         className="flex flex-col items-center justify-center gap-3 p-4 rounded-3xl bg-primary/10 dark:bg-primary/5 border-2 border-primary/20 dark:border-primary/10 transition-all active:scale-95 hover:shadow-xl hover:border-primary/40 group"
                     >
                         <div className="size-14 rounded-2xl bg-primary flex items-center justify-center text-black shadow-xl shadow-primary/40 group-hover:scale-110 transition-transform">
+                            <span className="material-symbols-outlined text-3xl font-bold">analytics</span>
+                        </div>
+                        <span className="text-[11px] font-black text-primary-dark dark:text-primary uppercase tracking-tight text-center leading-none">Ver<br/>Detalles</span>
+                    </button>
+                    <button
+                        onClick={() => setShowFormVaca(true)}
+                        className="flex flex-col items-center justify-center gap-3 p-4 rounded-3xl bg-[#f1f4f0] dark:bg-[#1a2618] border-2 border-[#dde6db] dark:border-[#2a3528] transition-all active:scale-95 hover:shadow-xl group"
+                    >
+                        <div className="size-14 rounded-2xl bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] flex items-center justify-center text-[#688961] shadow-md group-hover:scale-110 transition-transform">
                             <span className="material-symbols-outlined text-3xl font-bold">add</span>
                         </div>
-                        <span className="text-[11px] font-black text-primary-dark dark:text-primary uppercase tracking-tight text-center leading-none">Añadir<br/>Vaca</span>
+                        <span className="text-[11px] font-black text-[#688961] uppercase tracking-tight text-center leading-none">Añadir<br/>Vaca</span>
+                    </button>
+                    <button
+                        onClick={() => {
+                            setSelectedVaca(null)
+                            setShowFormAporte(true)
+                        }}
+                        className="flex flex-col items-center justify-center gap-3 p-4 rounded-3xl bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-100 dark:border-orange-800 transition-all active:scale-95 hover:shadow-xl hover:border-orange-300 dark:hover:border-orange-700 group col-span-3"
+                    >
+                        <div className="size-10 rounded-xl bg-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/40 group-hover:scale-105 transition-transform">
+                            <span className="material-symbols-outlined text-2xl">potted_plant</span>
+                        </div>
+                        <span className="text-[11px] font-black text-orange-800 dark:text-orange-300 uppercase tracking-tight text-center leading-none">Registrar Aporte de Capital</span>
                     </button>
                 </div>
 
@@ -628,6 +675,66 @@ const VacasLecheras = () => {
                                     className="w-full bg-primary text-black font-black px-6 py-3 rounded-lg shadow-md hover:bg-opacity-90 transition-all"
                                 >
                                     Registrar Gasto
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+
+                {/* Form Modal: Nuevo Aporte */}
+                {showFormAporte && (
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-orange-200 dark:border-orange-900/30">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h3 className="font-bold text-lg text-[#121811] dark:text-white">Registrar Aporte</h3>
+                                    {selectedVaca && <p className="text-sm text-gray-600 dark:text-gray-400">Vaca: {selectedVaca.nombre}</p>}
+                                </div>
+                                <button onClick={() => {
+                                    setShowFormAporte(false)
+                                    setSelectedVaca(null)
+                                }}>
+                                    <span className="material-symbols-outlined text-gray-400">close</span>
+                                </button>
+                            </div>
+                            <form onSubmit={handleSubmitAporte} className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Concepto</label>
+                                    <input
+                                        type="text"
+                                        value={formAporte.concepto}
+                                        onChange={(e) => setFormAporte({ ...formAporte, concepto: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
+                                        placeholder="Ej: Aporte capital general"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Monto</label>
+                                    <input
+                                        type="number"
+                                        value={formAporte.monto}
+                                        onChange={(e) => setFormAporte({ ...formAporte, monto: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-lg font-bold text-[#121811] dark:text-white"
+                                        placeholder="$0.00"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Socio(s) que aportan</label>
+                                    <input
+                                        type="text"
+                                        value={formAporte.socios}
+                                        onChange={(e) => setFormAporte({ ...formAporte, socios: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
+                                        placeholder="Ej: Socio A, Socio B"
+                                    />
+                                </div>
+                                <button
+                                    type="submit"
+                                    className="w-full bg-orange-500 text-white font-black px-6 py-3 rounded-lg shadow-md hover:bg-opacity-90 transition-all"
+                                >
+                                    Registrar Aporte
                                 </button>
                             </form>
                         </div>

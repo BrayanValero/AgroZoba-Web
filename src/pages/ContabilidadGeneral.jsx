@@ -11,6 +11,7 @@ const ContabilidadGeneral = () => {
     const [stats, setStats] = useState({
         ingresos: 0,
         gastos: 0,
+        aportes: 0,
         balance: 0
     })
     const [movimientos, setMovimientos] = useState([])
@@ -33,11 +34,13 @@ const ContabilidadGeneral = () => {
             // Calcular stats locales basados en el filtro
             const ingresos = todosMovimientos.filter(m => m.tipo === 'ingreso').reduce((acc, m) => acc + (m.monto || 0), 0)
             const gastos = todosMovimientos.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + (m.monto || 0), 0)
+            const aportes = todosMovimientos.filter(m => m.tipo === 'aporte').reduce((acc, m) => acc + (m.monto || 0), 0)
 
             setStats({
                 ingresos,
                 gastos,
-                balance: ingresos - gastos
+                aportes,
+                balance: (ingresos + aportes) - gastos
             })
 
             setMovimientos(todosMovimientos)
@@ -101,6 +104,7 @@ const ContabilidadGeneral = () => {
                     head: [['Concepto', 'Monto']],
                     body: [
                         ['Total Ingresos', formatCurrency(stats.ingresos)],
+                        ['Total Aportes', formatCurrency(stats.aportes)],
                         ['Total Gastos', formatCurrency(stats.gastos)],
                         ['Balance Neto', formatCurrency(stats.balance)]
                     ],
@@ -115,9 +119,10 @@ const ContabilidadGeneral = () => {
                 const tableRows = movimientos.map(m => [
                     formatDateShort(m.fecha),
                     m.modulo,
+                    m.modulo,
                     m.concepto,
-                    m.tipo === 'ingreso' ? 'Ingreso' : 'Gasto',
-                    m.tipo === 'ingreso' ? formatCurrency(m.monto) : `-${formatCurrency(m.monto)}`
+                    m.tipo === 'ingreso' ? 'Ingreso' : (m.tipo === 'aporte' ? 'Aporte' : 'Gasto'),
+                    m.tipo === 'ingreso' || m.tipo === 'aporte' ? formatCurrency(m.monto) : `-${formatCurrency(m.monto)}`
                 ])
 
                 doc.autoTable({
@@ -210,32 +215,33 @@ const ContabilidadGeneral = () => {
                 )}
 
                 {/* Summary Stats */}
-                <div className="grid grid-cols-2 gap-4 px-4 pb-6">
-                    <div className="flex flex-col gap-2 rounded-2xl p-5 bg-white dark:bg-white/5 border border-gray-100 dark:border-gray-800 shadow-sm">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="material-symbols-outlined text-primary text-[20px]">arrow_downward</span>
-                            <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Ingresos</p>
+                <div className="grid grid-cols-3 gap-3 p-4">
+                    <div className="flex flex-col gap-2 rounded-2xl p-4 bg-white dark:bg-white/5 border border-gray-100 dark:border-gray-800 shadow-sm">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className="material-symbols-outlined text-primary text-[18px]">arrow_downward</span>
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider">Ingresos</p>
                         </div>
-                        <p className="text-[#121811] dark:text-white tracking-tight text-xl font-extrabold leading-tight">
+                        <p className="text-[#121811] dark:text-white tracking-tight text-base font-extrabold leading-tight">
                             {loading ? '...' : formatCurrency(stats.ingresos)}
                         </p>
-                        <div className="flex items-center gap-1 mt-1">
-                            <span className="text-primary text-xs font-bold">+12.5%</span>
-                            <span className="text-gray-400 text-[10px]">vs anterior</span>
-                        </div>
                     </div>
-                    <div className="flex flex-col gap-2 rounded-2xl p-5 bg-white dark:bg-white/5 border border-gray-100 dark:border-gray-800 shadow-sm">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="material-symbols-outlined text-red-500 text-[20px]">arrow_upward</span>
-                            <p className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">Gastos</p>
+                    <div className="flex flex-col gap-2 rounded-2xl p-4 bg-white dark:bg-white/5 border border-gray-100 dark:border-gray-800 shadow-sm">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className="material-symbols-outlined text-blue-500 text-[18px]">potted_plant</span>
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider">Aportes</p>
                         </div>
-                        <p className="text-[#121811] dark:text-white tracking-tight text-xl font-extrabold leading-tight">
+                        <p className="text-[#121811] dark:text-white tracking-tight text-base font-extrabold leading-tight">
+                            {loading ? '...' : formatCurrency(stats.aportes)}
+                        </p>
+                    </div>
+                    <div className="flex flex-col gap-2 rounded-2xl p-4 bg-white dark:bg-white/5 border border-gray-100 dark:border-gray-800 shadow-sm">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className="material-symbols-outlined text-red-500 text-[18px]">arrow_upward</span>
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider">Gastos</p>
+                        </div>
+                        <p className="text-[#121811] dark:text-white tracking-tight text-base font-extrabold leading-tight">
                             {loading ? '...' : formatCurrency(stats.gastos)}
                         </p>
-                        <div className="flex items-center gap-1 mt-1">
-                            <span className="text-red-500 text-xs font-bold">-4.2%</span>
-                            <span className="text-gray-400 text-[10px]">vs anterior</span>
-                        </div>
                     </div>
                 </div>
 
@@ -273,15 +279,15 @@ const ContabilidadGeneral = () => {
                     ) : (
                         movimientos.map((mov, index) => (
                             <div key={index} className="flex items-center gap-4 bg-white dark:bg-white/5 px-4 h-20 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm mb-2">
-                                <div className={`flex items-center justify-center rounded-xl ${mov.tipo === 'ingreso' ? 'bg-primary/10 text-primary' : 'bg-red-100 dark:bg-red-900/20 text-red-500'} shrink-0 w-12 h-12`}>
+                                <div className={`flex items-center justify-center rounded-xl ${mov.tipo === 'ingreso' ? 'bg-primary/10 text-primary' : (mov.tipo === 'aporte' ? 'bg-blue-100 text-blue-500' : 'bg-red-100 dark:bg-red-900/20 text-red-500')} shrink-0 w-12 h-12`}>
                                     <span className="material-symbols-outlined">
-                                        {mov.tipo === 'ingreso' ? 'payments' : 'shopping_cart'}
+                                        {mov.tipo === 'ingreso' ? 'payments' : (mov.tipo === 'aporte' ? 'potted_plant' : 'shopping_cart')}
                                     </span>
                                 </div>
                                 <div className="flex flex-col flex-1">
                                     <p className="text-[#121811] dark:text-white text-[15px] font-bold">{mov.concepto}</p>
                                     <p className="text-gray-500 dark:text-gray-400 text-xs font-medium">
-                                        {mov.modulo} • {formatDateShort(mov.fecha)}
+                                        {mov.modulo} • {formatDateShort(mov.fecha)} {mov.socios ? `• Socios: ${mov.socios}` : ''}
                                         {mov.tipo === 'ingreso' && (
                                             <span className={`ml-2 px-1 rounded-md text-[10px] font-bold ${mov.estado_pago === 'debe' ? 'bg-orange-100 text-orange-600 dark:bg-orange-900/30' : 'bg-green-100 text-green-600 dark:bg-green-900/30'}`}>
                                                 {mov.estado_pago === 'debe' ? 'PENDIENTE' : 'COBRADO'}
@@ -290,8 +296,8 @@ const ContabilidadGeneral = () => {
                                     </p>
                                 </div>
                                 <div className="text-right">
-                                    <p className={`text-[15px] font-extrabold ${mov.tipo === 'ingreso' ? 'text-primary' : 'text-[#121811] dark:text-white'}`}>
-                                        {mov.tipo === 'ingreso' ? '+' : '-'}{formatCurrency(mov.monto)}
+                                    <p className={`text-[15px] font-extrabold ${mov.tipo === 'ingreso' ? 'text-primary' : (mov.tipo === 'aporte' ? 'text-blue-500' : 'text-[#121811] dark:text-white')}`}>
+                                        {mov.tipo === 'ingreso' || mov.tipo === 'aporte' ? '+' : '-'}{formatCurrency(mov.monto)}
                                     </p>
                                 </div>
                             </div>

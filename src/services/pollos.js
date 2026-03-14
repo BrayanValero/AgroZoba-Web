@@ -190,6 +190,44 @@ export const createIngreso = async (ingresoData) => {
 }
 
 /**
+ * Obtener aportes de una producción
+ */
+export const getAportesByProduccion = async (produccionId) => {
+    try {
+        const { data, error } = await supabase
+            .from('aportes_pollos')
+            .select('*')
+            .eq('produccion_id', produccionId)
+            .order('fecha', { ascending: false })
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error fetching aportes:', error)
+        return { data: null, error }
+    }
+}
+
+/**
+ * Crear aporte para una producción
+ */
+export const createAporte = async (aporteData) => {
+    try {
+        const { data, error } = await supabase
+            .from('aportes_pollos')
+            .insert([aporteData])
+            .select()
+            .single()
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error creating aporte:', error)
+        return { data: null, error }
+    }
+}
+
+/**
  * Actualizar ingreso/venta de pollos
  */
 export const updateIngreso = async (id, updates) => {
@@ -216,15 +254,21 @@ export const calcularRentabilidad = async (produccionId) => {
     try {
         const { data: gastos } = await getGastosByProduccion(produccionId)
         const { data: ingresos } = await getIngresosByProduccion(produccionId)
+        const { data: aportes } = await getAportesByProduccion(produccionId)
 
         const totalGastos = gastos?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         const totalIngresos = ingresos?.reduce((acc, i) => acc + (i.monto_total || 0), 0) || 0
+        const totalAportes = aportes?.reduce((acc, a) => acc + (a.monto || 0), 0) || 0
+        
+        const balance = (totalIngresos + totalAportes) - totalGastos
         const rentabilidad = totalIngresos - totalGastos
         const porcentaje = totalGastos > 0 ? ((rentabilidad / totalGastos) * 100) : 0
 
         return {
             totalGastos,
             totalIngresos,
+            totalAportes,
+            balance,
             rentabilidad,
             porcentaje
         }

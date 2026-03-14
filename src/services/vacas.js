@@ -249,6 +249,63 @@ export const createProduccion = async (produccionData) => {
 }
 
 /**
+ * Obtener aportes de una vaca
+ */
+export const getAportesByVaca = async (vacaId) => {
+    try {
+        const { data, error } = await supabase
+            .from('aportes_vacas')
+            .select('*')
+            .eq('vaca_id', vacaId)
+            .order('fecha', { ascending: false })
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error fetching aportes:', error)
+        return { data: null, error }
+    }
+}
+
+/**
+ * Obtener todos los aportes de vacas (generales y específicos)
+ */
+export const getAportesGenerales = async (userId) => {
+    try {
+        const { data, error } = await supabase
+            .from('aportes_vacas')
+            .select('*')
+            .eq('user_id', userId)
+            .order('fecha', { ascending: false })
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error fetching aportes generales:', error)
+        return { data: null, error }
+    }
+}
+
+/**
+ * Crear aporte para vacas
+ */
+export const createAporte = async (aporteData) => {
+    try {
+        const { data, error } = await supabase
+            .from('aportes_vacas')
+            .insert([aporteData])
+            .select()
+            .single()
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error creating aporte:', error)
+        return { data: null, error }
+    }
+}
+
+/**
  * Subir foto de vaca a Supabase Storage
  */
 export const uploadVacaPhoto = async (file, userId) => {
@@ -301,15 +358,21 @@ export const calcularRentabilidad = async (vacaId) => {
     try {
         const { data: gastos } = await getGastosByVaca(vacaId)
         const { data: produccion } = await getProduccionByVaca(vacaId)
+        const { data: aportes } = await getAportesByVaca(vacaId)
 
         const totalGastos = gastos?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         const totalIngresos = produccion?.reduce((acc, p) => acc + (p.monto_total || 0), 0) || 0
+        const totalAportes = aportes?.reduce((acc, a) => acc + (a.monto || 0), 0) || 0
+
+        const balance = (totalIngresos + totalAportes) - totalGastos
         const rentabilidad = totalIngresos - totalGastos
         const porcentaje = totalGastos > 0 ? ((rentabilidad / totalGastos) * 100) : 0
 
         return {
             totalGastos,
             totalIngresos,
+            totalAportes,
+            balance,
             rentabilidad,
             porcentaje
         }

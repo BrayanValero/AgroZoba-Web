@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getLoteById, getGastosByLote, getVentasByLote, updateVenta, createGasto } from '../services/gallinas'
+import { getLoteById, getGastosByLote, getVentasByLote, updateVenta, createGasto, getAportesByLote } from '../services/gallinas'
 import { useAuth } from '../context/AuthContext'
 import { formatCurrency, formatDateShort } from '../utils/formatters'
 import BottomNavigation from '../components/BottomNavigation'
@@ -12,6 +12,7 @@ const GallinasDetalle = () => {
     const [lote, setLote] = useState(null)
     const [gastos, setGastos] = useState([])
     const [ventas, setVentas] = useState([])
+    const [aportes, setAportes] = useState([])
     const [activeTab, setActiveTab] = useState('resumen')
     const [loading, setLoading] = useState(true)
     const [showFormGasto, setShowFormGasto] = useState(false)
@@ -34,6 +35,8 @@ const GallinasDetalle = () => {
             setGastos(g || [])
             const { data: v } = await getVentasByLote(id)
             setVentas(v || [])
+            const { data: a } = await getAportesByLote(id)
+            setAportes(a || [])
         }
         setLoading(false)
     }
@@ -82,8 +85,9 @@ const GallinasDetalle = () => {
 
     const totalGastos = gastos.reduce((acc, g) => acc + (g.monto || 0), 0)
     const totalVentas = ventas.reduce((acc, v) => acc + (v.monto_total || 0), 0)
+    const totalAportes = aportes.reduce((acc, a) => acc + (a.monto || 0), 0)
     const totalPorCobrar = ventas.filter(v => v.estado_pago === 'debe').reduce((acc, v) => acc + (v.monto_total || 0), 0)
-    const balance = (totalVentas - totalPorCobrar) - totalGastos
+    const balance = (totalVentas + totalAportes - totalPorCobrar) - totalGastos
 
     return (
         <div className="bg-background-light dark:bg-background-dark min-h-screen flex flex-col font-display max-w-7xl mx-auto w-full relative border-x border-[#dde6db] dark:border-[#2a3528]">
@@ -111,12 +115,8 @@ const GallinasDetalle = () => {
                     <p className="text-xs font-bold text-red-500">{formatCurrency(totalGastos)}</p>
                 </div>
                 <div className="px-1 text-center">
-                    <p className="text-[9px] uppercase text-gray-500 font-bold">Ventas</p>
-                    <p className="text-xs font-bold text-green-600">{formatCurrency(totalVentas)}</p>
-                </div>
-                <div className="px-1 text-center">
-                    <p className="text-[9px] uppercase text-gray-500 font-bold">Por Cobrar</p>
-                    <p className="text-xs font-bold text-orange-500">{formatCurrency(totalPorCobrar)}</p>
+                    <p className="text-[9px] uppercase text-gray-500 font-bold">Aportes</p>
+                    <p className="text-xs font-bold text-blue-500">{formatCurrency(totalAportes)}</p>
                 </div>
                 <div className="px-1 text-center">
                     <p className="text-[9px] uppercase text-gray-500 font-bold">Balance</p>
@@ -145,6 +145,12 @@ const GallinasDetalle = () => {
                     className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'ventas' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
                 >
                     Ventas
+                </button>
+                <button
+                    onClick={() => setActiveTab('aportes')}
+                    className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'aportes' ? 'border-primary text-primary' : 'border-transparent text-gray-500 dark:text-gray-400'}`}
+                >
+                    Aportes
                 </button>
             </div>
 

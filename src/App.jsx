@@ -9,6 +9,7 @@ import GallinasPosura from './pages/GallinasPosura'
 import GallinasDetalle from './pages/GallinasDetalle'
 import VacasLecheras from './pages/VacasLecheras'
 import VacasDetalle from './pages/VacasDetalle'
+import VacasContabilidad from './pages/VacasContabilidad'
 import ContabilidadGeneral from './pages/ContabilidadGeneral'
 import Reportes from './pages/Reportes'
 import Perfil from './pages/Perfil'
@@ -89,6 +90,14 @@ function App() {
                         element={
                             <ProtectedRoute>
                                 <GallinasDetalle />
+                            </ProtectedRoute>
+                        }
+                    />
+                    <Route
+                        path="/vacas/contabilidad"
+                        element={
+                            <ProtectedRoute>
+                                <VacasContabilidad />
                             </ProtectedRoute>
                         }
                     />

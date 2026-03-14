@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getProduccionById, getGastosByProduccion, getIngresosByProduccion, createGasto, createIngreso, updateProduccion, updateIngreso } from '../services/pollos'
+import { getProduccionById, getGastosByProduccion, getIngresosByProduccion, createGasto, createIngreso, updateProduccion, updateIngreso, getAportesByProduccion } from '../services/pollos'
 import { getAllRecentClients } from '../services/clients'
 import { formatCurrency, formatDateShort } from '../utils/formatters'
 import BottomNavigation from '../components/BottomNavigation'
@@ -11,6 +11,7 @@ const PollosDetalle = () => {
     const [produccion, setProduccion] = useState(null)
     const [gastos, setGastos] = useState([])
     const [ingresos, setIngresos] = useState([])
+    const [aportes, setAportes] = useState([])
     const [activeTab, setActiveTab] = useState('resumen')
     const [loading, setLoading] = useState(true)
 
@@ -44,6 +45,8 @@ const PollosDetalle = () => {
             setGastos(g || [])
             const { data: i } = await getIngresosByProduccion(id)
             setIngresos(i || [])
+            const { data: a } = await getAportesByProduccion(id)
+            setAportes(a || [])
 
             // Cargar clientes recientes (todos los módulos)
             const { data: clients } = await getAllRecentClients(prod.user_id)
@@ -145,8 +148,9 @@ const PollosDetalle = () => {
 
     const totalGastos = gastos.reduce((acc, g) => acc + (g.monto || 0), 0) + initialCostVal
     const totalIngresos = ingresos.reduce((acc, i) => acc + (i.monto_total || 0), 0)
+    const totalAportes = aportes.reduce((acc, a) => acc + (a.monto || 0), 0)
     const totalPorCobrar = ingresos.filter(i => i.estado_pago === 'debe').reduce((acc, i) => acc + (i.monto_total || 0), 0)
-    const balance = (totalIngresos - totalPorCobrar) - totalGastos
+    const balance = (totalIngresos + totalAportes - totalPorCobrar) - totalGastos
 
 
     return (
@@ -175,12 +179,8 @@ const PollosDetalle = () => {
                     <p className="text-xs font-bold text-red-500">{formatCurrency(totalGastos)}</p>
                 </div>
                 <div className="px-1 text-center">
-                    <p className="text-[9px] uppercase text-[#688961] font-bold">Ventas</p>
-                    <p className="text-xs font-bold text-green-600">{formatCurrency(totalIngresos)}</p>
-                </div>
-                <div className="px-1 text-center">
-                    <p className="text-[9px] uppercase text-[#688961] font-bold">Por Cobrar</p>
-                    <p className="text-xs font-bold text-orange-500">{formatCurrency(totalPorCobrar)}</p>
+                    <p className="text-[9px] uppercase text-[#688961] font-bold">Aportes</p>
+                    <p className="text-xs font-bold text-blue-500">{formatCurrency(totalAportes)}</p>
                 </div>
                 <div className="px-1 text-center">
                     <p className="text-[9px] uppercase text-[#688961] font-bold">Balance</p>
@@ -192,7 +192,7 @@ const PollosDetalle = () => {
 
             {/* Tabs */}
             <div className="flex border-b border-[#dde6db] dark:border-[#2a3528] bg-white dark:bg-[#0a1108]">
-                {['resumen', 'gastos', 'ventas'].map((tab) => (
+                {['resumen', 'gastos', 'ventas', 'aportes'].map((tab) => (
                     <button
                         key={tab}
                         onClick={() => setActiveTab(tab)}

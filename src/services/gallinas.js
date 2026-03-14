@@ -191,6 +191,44 @@ export const createVenta = async (ventaData) => {
 }
 
 /**
+ * Obtener aportes de un lote
+ */
+export const getAportesByLote = async (loteId) => {
+    try {
+        const { data, error } = await supabase
+            .from('aportes_gallinas')
+            .select('*')
+            .eq('lote_id', loteId)
+            .order('fecha', { ascending: false })
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error fetching aportes:', error)
+        return { data: null, error }
+    }
+}
+
+/**
+ * Crear aporte para un lote
+ */
+export const createAporte = async (aporteData) => {
+    try {
+        const { data, error } = await supabase
+            .from('aportes_gallinas')
+            .insert([aporteData])
+            .select()
+            .single()
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error creating aporte:', error)
+        return { data: null, error }
+    }
+}
+
+/**
  * Actualizar venta de huevos
  */
 export const updateVenta = async (id, updates) => {
@@ -217,15 +255,21 @@ export const calcularRentabilidad = async (loteId) => {
     try {
         const { data: gastos } = await getGastosByLote(loteId)
         const { data: ventas } = await getVentasByLote(loteId)
+        const { data: aportes } = await getAportesByLote(loteId)
 
         const totalGastos = gastos?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         const totalVentas = ventas?.reduce((acc, v) => acc + (v.monto_total || 0), 0) || 0
+        const totalAportes = aportes?.reduce((acc, a) => acc + (a.monto || 0), 0) || 0
+
+        const balance = (totalVentas + totalAportes) - totalGastos
         const rentabilidad = totalVentas - totalGastos
         const porcentaje = totalGastos > 0 ? ((rentabilidad / totalGastos) * 100) : 0
 
         return {
             totalGastos,
             totalVentas,
+            totalAportes,
+            balance,
             rentabilidad,
             porcentaje
         }
