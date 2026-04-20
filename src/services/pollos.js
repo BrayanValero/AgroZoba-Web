@@ -248,6 +248,24 @@ export const updateIngreso = async (id, updates) => {
 }
 
 /**
+ * Eliminar ingreso/venta de pollos
+ */
+export const deleteIngreso = async (id) => {
+    try {
+        const { error } = await supabase
+            .from('ingresos_pollos')
+            .delete()
+            .eq('id', id)
+
+        if (error) throw error
+        return { error: null }
+    } catch (error) {
+        console.error('Error deleting ingreso:', error)
+        return { error }
+    }
+}
+
+/**
  * Calcular rentabilidad de una producción
  */
 export const calcularRentabilidad = async (produccionId) => {

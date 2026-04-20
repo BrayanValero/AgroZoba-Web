@@ -190,10 +190,13 @@ const VacasLecheras = () => {
         })
 
         if (!error) {
+            alert('Aporte registrado correctamente')
             setShowFormAporte(false)
             setFormAporte({ concepto: '', monto: '', socios: 'Brayan, Zory' })
             setSelectedVaca(null)
             loadVacas()
+        } else {
+            alert('Error al registrar aporte: ' + error.message)
         }
     }
 

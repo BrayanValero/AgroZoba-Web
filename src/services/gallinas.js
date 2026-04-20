@@ -149,6 +149,44 @@ export const createGasto = async (gastoData) => {
 }
 
 /**
+ * Actualizar gasto existente
+ */
+export const updateGasto = async (id, updates) => {
+    try {
+        const { data, error } = await supabase
+            .from('gastos_gallinas')
+            .update(updates)
+            .eq('id', id)
+            .select()
+            .single()
+
+        if (error) throw error
+        return { data, error: null }
+    } catch (error) {
+        console.error('Error updating gasto:', error)
+        return { data: null, error }
+    }
+}
+
+/**
+ * Eliminar gasto
+ */
+export const deleteGasto = async (id) => {
+    try {
+        const { error } = await supabase
+            .from('gastos_gallinas')
+            .delete()
+            .eq('id', id)
+
+        if (error) throw error
+        return { error: null }
+    } catch (error) {
+        console.error('Error deleting gasto:', error)
+        return { error }
+    }
+}
+
+/**
  * Obtener ventas de un lote
  */
 export const getVentasByLote = async (loteId) => {
@@ -187,6 +225,24 @@ export const createVenta = async (ventaData) => {
     } catch (error) {
         console.error('Error creating venta:', error)
         return { data: null, error }
+    }
+}
+
+/**
+ * Eliminar venta de huevos
+ */
+export const deleteVenta = async (id) => {
+    try {
+        const { error } = await supabase
+            .from('ventas_gallinas')
+            .delete()
+            .eq('id', id)
+
+        if (error) throw error
+        return { error: null }
+    } catch (error) {
+        console.error('Error deleting venta:', error)
+        return { error }
     }
 }
 

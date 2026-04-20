@@ -200,9 +200,12 @@ const GallinasPosura = () => {
         })
 
         if (!error) {
+            alert('Aporte registrado correctamente')
             setShowFormAporte(false)
             setFormAporte({ concepto: '', monto: '', socios: 'Brayan, Zory' })
             loadLotes()
+        } else {
+            alert('Error al registrar aporte: ' + error.message)
         }
     }
 

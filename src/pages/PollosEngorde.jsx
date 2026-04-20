@@ -147,29 +147,43 @@ const PollosEngorde = () => {
         })
 
         if (!error) {
+            alert('Aporte registrado correctamente')
             setShowFormAporte(false)
             setFormAporte({ concepto: '', monto: '', socios: 'Brayan, Zory' })
             setSelectedProduccion(null)
             loadProducciones()
+        } else {
+            alert('Error al registrar aporte: ' + error.message)
         }
+    }
+
+    const updateVentaCalculations = (changedField, value, currentForm) => {
+        const updates = { [changedField]: value }
+        
+        const peso = changedField === 'peso_total' ? parseFloat(value) : parseFloat(currentForm.peso_total)
+        const precio = changedField === 'precio_kilo' ? parseFloat(value) : parseFloat(currentForm.precio_kilo)
+        const monto = changedField === 'monto_total' ? parseFloat(value) : parseFloat(currentForm.monto_total)
+
+        if (changedField === 'peso_total' || changedField === 'precio_kilo') {
+            if (!isNaN(peso) && !isNaN(precio)) {
+                updates.monto_total = (peso * precio).toFixed(2)
+            }
+        } else if (changedField === 'monto_total') {
+            if (!isNaN(monto) && !isNaN(precio) && precio > 0) {
+                updates.peso_total = (monto / precio).toFixed(2)
+            }
+        }
+
+        return { ...currentForm, ...updates }
     }
 
     const handleSubmitVenta = async (e) => {
         e.preventDefault()
 
-        // Priorizar cálculo por peso si existe, sino por unidad (legacy)
-        let montoTotal = 0
         const peso = parseFloat(formVenta.peso_total || 0)
-        // Usar precio del form o fallback a 13000
         const precio = parseFloat(formVenta.precio_kilo || 13000)
         const cantidad = parseInt(formVenta.cantidad || 0)
-
-        if (peso > 0) {
-            montoTotal = peso * precio
-        } else {
-            // Fallback o lógica antigua si no usan peso
-            montoTotal = cantidad * 13000 // Asumiendo precio por unidad o el mismo precio/kilo como aproximación si no hay peso
-        }
+        const montoTotal = parseFloat(formVenta.monto_total) || (peso * precio)
 
         const { error } = await createIngreso({
             produccion_id: selectedProduccion.id,
@@ -187,11 +201,9 @@ const PollosEngorde = () => {
         })
 
         if (!error) {
-            // Actualizar cantidad actual del lote
-            const nuevaCantidad = selectedProduccion.cantidad_actual - cantidad
+            const nuevaCantidad = (selectedProduccion.cantidad_actual || 0) - cantidad
             const updates = { cantidad_actual: nuevaCantidad }
 
-            // Auto-finalizar si se vendieron todos
             if (nuevaCantidad <= 0) {
                 updates.estado = 'finalizado'
             }
@@ -210,6 +222,9 @@ const PollosEngorde = () => {
             })
             setSelectedProduccion(null)
             loadProducciones()
+        } else {
+            console.error('Error al registrar venta:', error)
+            alert('Error: ' + error.message)
         }
     }
 
@@ -360,7 +375,7 @@ const PollosEngorde = () => {
                 {/* Form Modal: Nueva Produccion */}
                 {showForm && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-primary/30">
+                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border-2 border-primary/30 shadow-2xl">
                             <div className="flex justify-between items-center mb-6">
                                 <h3 className="font-bold text-lg text-[#121811] dark:text-white">Nuevo Lote de Pollos</h3>
                                 <button onClick={() => setShowForm(false)}>
@@ -427,7 +442,7 @@ const PollosEngorde = () => {
                 {/* Form Modal: Nuevo Gasto */}
                 {showFormGasto && selectedProduccion && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-red-200 dark:border-red-900/30">
+                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border-2 border-red-200 dark:border-red-900/30 shadow-2xl">
                             <div className="flex justify-between items-center mb-6">
                                 <div>
                                     <h3 className="font-bold text-lg text-[#121811] dark:text-white">Registrar Gasto</h3>
@@ -488,13 +503,12 @@ const PollosEngorde = () => {
                     </div>
                 )}
 
-                {/* Form Modal: Registrar Venta */}
                 {showFormVenta && selectedProduccion && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-primary/30">
+                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border-2 border-primary/30 shadow-2xl">
                             <div className="flex justify-between items-center mb-6">
                                 <div>
-                                    <h3 className="font-bold text-lg text-[#121811] dark:text-white">Registrar Ingreso</h3>
+                                    <h3 className="font-bold text-lg text-[#121811] dark:text-white">Registrar Venta</h3>
                                     <p className="text-xs text-[#688961]">{selectedProduccion.nombre}</p>
                                 </div>
                                 <button onClick={() => {
@@ -505,79 +519,90 @@ const PollosEngorde = () => {
                                 </button>
                             </div>
                             <form onSubmit={handleSubmitVenta} className="space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="col-span-2">
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Cliente</label>
-                                        <input
-                                            type="text"
-                                            value={formVenta.cliente}
-                                            onChange={(e) => setFormVenta({ ...formVenta, cliente: e.target.value })}
-                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                            placeholder="Nombre del cliente"
-                                            list="clients-list"
-                                        />
-                                        <datalist id="clients-list">
-                                            {recentClients.map(c => <option key={c.id || c.nombre} value={c.nombre} />)}
-                                        </datalist>
-                                    </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Cliente</label>
+                                    <input
+                                        type="text"
+                                        value={formVenta.cliente}
+                                        onChange={(e) => setFormVenta({ ...formVenta, cliente: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-2xl p-4 text-[#121811] dark:text-white text-sm"
+                                        placeholder="Nombre del cliente"
+                                        list="clients-list"
+                                    />
+                                    <datalist id="clients-list">
+                                        {recentClients.map(c => <option key={c.id || c.nombre} value={c.nombre} />)}
+                                    </datalist>
+                                </div>
+
+                                <div className="space-y-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Cant. (Aves)</label>
+                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-1 px-1">Cant. (Aves)</label>
                                         <input
                                             type="number"
                                             value={formVenta.cantidad}
                                             onChange={(e) => setFormVenta({ ...formVenta, cantidad: e.target.value })}
-                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
+                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-2xl p-4 text-[#121811] dark:text-white text-sm"
                                             placeholder="0"
                                             required
                                         />
                                     </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#688961] uppercase mb-1 px-1">Peso Total (Kg)</label>
+                                            <input
+                                                type="number"
+                                                value={formVenta.peso_total}
+                                                onChange={(e) => setFormVenta(prev => updateVentaCalculations('peso_total', e.target.value, prev))}
+                                                className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-2xl p-4 text-[#121811] dark:text-white text-sm font-bold"
+                                                placeholder="0.00"
+                                                step="0.01"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-[#688961] uppercase mb-1 px-1">Precio / Kilo</label>
+                                            <input
+                                                type="number"
+                                                value={formVenta.precio_kilo}
+                                                onChange={(e) => setFormVenta(prev => updateVentaCalculations('precio_kilo', e.target.value, prev))}
+                                                className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-2xl p-4 text-[#121811] dark:text-white text-sm"
+                                                placeholder="13000"
+                                                required
+                                            />
+                                        </div>
+                                    </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Peso Total (Kg)</label>
+                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-1 px-1">Monto Total de Venta ($)</label>
                                         <input
                                             type="number"
-                                            value={formVenta.peso_total}
-                                            onChange={(e) => setFormVenta({ ...formVenta, peso_total: e.target.value })}
-                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                            placeholder="0.00"
                                             step="0.01"
-                                            required
+                                            value={formVenta.monto_total}
+                                            onChange={(e) => setFormVenta(prev => updateVentaCalculations('monto_total', e.target.value, prev))}
+                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-2xl p-4 text-primary font-black text-xl"
+                                            placeholder="0.00"
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Precio / Kilo</label>
-                                        <input
-                                            type="number"
-                                            value={formVenta.precio_kilo}
-                                            onChange={(e) => setFormVenta({ ...formVenta, precio_kilo: e.target.value })}
-                                            className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                            placeholder="13.00"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Estado Pago</label>
+                                        <label className="block text-xs font-bold text-[#688961] uppercase mb-1 px-1">Estado Pago</label>
                                         <select
                                             value={formVenta.estado_pago}
                                             onChange={(e) => setFormVenta({ ...formVenta, estado_pago: e.target.value })}
-                                            className={`w-full border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 font-bold ${formVenta.estado_pago === 'pagado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
+                                            className={`w-full border border-[#dde6db] dark:border-[#2a3528] rounded-2xl p-4 font-bold text-sm ${formVenta.estado_pago === 'pagado' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
                                         >
                                             <option value="pagado">Pagado</option>
                                             <option value="debe">Debe (Crédito)</option>
                                         </select>
                                     </div>
                                 </div>
-                                <div className="pt-4 border-t border-[#dde6db] dark:border-[#2a3528] flex justify-between items-end">
-                                    <div>
-                                        <p className="text-xs font-bold text-[#688961] uppercase">Total Venta</p>
-                                        <p className="text-2xl font-black text-primary">
-                                            {formatCurrency((formVenta.peso_total && formVenta.precio_kilo) ? formVenta.peso_total * formVenta.precio_kilo : 0)}
-                                        </p>
-                                    </div>
+                                <div className="pt-4 border-t border-[#dde6db] dark:border-[#2a3528] flex justify-between items-center">
+                                    <p className="text-2xl font-black text-primary">
+                                        {formatCurrency(formVenta.monto_total || 0)}
+                                    </p>
                                     <button
                                         type="submit"
-                                        className="bg-primary text-black font-black px-6 py-2 rounded-lg shadow-md hover:bg-opacity-90 transition-all"
+                                        className="bg-primary text-black font-black px-10 py-4 rounded-2xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all"
                                     >
-                                        Registrar
+                                        REGISTRAR
                                     </button>
                                 </div>
                             </form>
@@ -588,7 +613,7 @@ const PollosEngorde = () => {
                 {/* Form Modal: Nuevo Aporte */}
                 {showFormAporte && selectedProduccion && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-orange-200 dark:border-orange-900/30">
+                        <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto border-2 border-orange-200 dark:border-orange-900/30 shadow-2xl">
                             <div className="flex justify-between items-center mb-6">
                                 <div>
                                     <h3 className="font-bold text-lg text-[#121811] dark:text-white">Registrar Aporte</h3>

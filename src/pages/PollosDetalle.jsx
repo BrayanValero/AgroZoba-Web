@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getProduccionById, getGastosByProduccion, getIngresosByProduccion, createGasto, createIngreso, updateProduccion, updateIngreso, getAportesByProduccion } from '../services/pollos'
+import { getProduccionById, getGastosByProduccion, getIngresosByProduccion, createGasto, createIngreso, updateProduccion, updateIngreso, deleteIngreso, getAportesByProduccion } from '../services/pollos'
 import { getAllRecentClients } from '../services/clients'
 import { formatCurrency, formatDateShort } from '../utils/formatters'
 import BottomNavigation from '../components/BottomNavigation'
@@ -18,7 +18,10 @@ const PollosDetalle = () => {
     // Modals
     const [showGastoModal, setShowGastoModal] = useState(false)
     const [showVentaModal, setShowVentaModal] = useState(false)
+    const [showEditVentaModal, setShowEditVentaModal] = useState(false)
+    const [showEditLoteModal, setShowEditLoteModal] = useState(false)
     const [showMortalidadModal, setShowMortalidadModal] = useState(false)
+    const [selectedVenta, setSelectedVenta] = useState(null)
 
     // Form states
     const [formGasto, setFormGasto] = useState({ concepto: '', monto: '', categoria: 'alimento' })
@@ -26,10 +29,12 @@ const PollosDetalle = () => {
         cantidad: '',
         peso_total: '',
         precio_kilo: 13000,
+        monto_total: '',
         cliente: '',
         estado_pago: 'debe'
     })
     const [formMortalidad, setFormMortalidad] = useState({ cantidad: '', motivo: '' })
+    const [formEditLote, setFormEditLote] = useState({})
     const [recentClients, setRecentClients] = useState([])
 
     useEffect(() => {
@@ -72,12 +77,40 @@ const PollosDetalle = () => {
         }
     }
 
+    const updateVentaCalculations = (changedField, value, currentForm) => {
+        const peso = changedField === 'peso_total' ? parseFloat(value) : parseFloat(currentForm.peso_total)
+        const precio = changedField === 'precio_kilo' ? parseFloat(value) : parseFloat(currentForm.precio_kilo)
+        const monto = changedField === 'monto_total' ? parseFloat(value) : parseFloat(currentForm.monto_total)
+
+        let updates = { [changedField]: value }
+
+        if (changedField === 'peso_total' || changedField === 'precio_kilo') {
+            if (!isNaN(peso) && !isNaN(precio)) {
+                updates.monto_total = (peso * precio).toFixed(2)
+            }
+        } else if (changedField === 'monto_total') {
+            if (!isNaN(monto) && !isNaN(precio) && precio > 0) {
+                updates.peso_total = (monto / precio).toFixed(2)
+            }
+        }
+
+        return { ...currentForm, ...updates }
+    }
+
     const handleAddVenta = async (e) => {
         e.preventDefault()
         const peso = parseFloat(formVenta.peso_total || 0)
         const precio = parseFloat(formVenta.precio_kilo || 13000)
         const cantidad = parseInt(formVenta.cantidad || 0)
-        const montoTotal = peso * precio
+        const montoTotal = parseFloat(formVenta.monto_total) || (peso * precio)
+
+        console.log('Intentando registrar venta:', {
+            produccion_id: id,
+            monto_total: montoTotal,
+            cantidad_vendida: cantidad,
+            peso_total: peso,
+            precio_kilo: precio
+        })
 
         const { error: errorIngreso } = await createIngreso({
             produccion_id: id,
@@ -87,34 +120,103 @@ const PollosDetalle = () => {
             peso_total: peso,
             kilos_vendidos: peso,
             precio_kilo: precio,
-            precio_por_kilo: precio, // Compatibilidad
+            precio_por_kilo: precio, 
             cliente: formVenta.cliente || 'Consumidor Final',
             estado_pago: formVenta.estado_pago,
             user_id: produccion.user_id,
             fecha: new Date().toISOString().split('T')[0]
         })
 
-        if (!errorIngreso) {
-            // Update population
-            const nuevaCantidad = produccion.cantidad_actual - cantidad
-            const updates = { cantidad_actual: nuevaCantidad }
-
-            if (nuevaCantidad <= 0) {
-                updates.estado = 'finalizado'
-            }
-
-            await updateProduccion(id, updates)
-
-            setShowVentaModal(false)
-            setFormVenta({ cantidad: '', peso_total: '', precio_kilo: 13000, cliente: '', estado_pago: 'debe' })
-            loadData()
+        if (errorIngreso) {
+            console.error('Error al registrar venta:', errorIngreso)
+            alert('Error al registrar la venta: ' + errorIngreso.message)
+            return
         }
+
+        // Update population
+        const nuevaCantidad = (produccion.cantidad_actual || 0) - cantidad
+        const updates = { cantidad_actual: nuevaCantidad }
+
+        if (nuevaCantidad <= 0) {
+            updates.estado = 'finalizado'
+        }
+
+        const { error: errorUpdate } = await updateProduccion(id, updates)
+        
+        if (errorUpdate) {
+            console.error('Error al actualizar población:', errorUpdate)
+        }
+
+        setShowVentaModal(false)
+        setFormVenta({ cantidad: '', peso_total: '', precio_kilo: 13000, monto_total: '', cliente: '', estado_pago: 'debe' })
+        loadData()
     }
 
     const handleMarkAsPaid = async (ingresoId) => {
         const { error } = await updateIngreso(ingresoId, { estado_pago: 'pagado' })
         if (!error) {
             loadData()
+        }
+    }
+
+    const handleDeleteVenta = async (venta) => {
+        if (!window.confirm('¿Estás seguro de eliminar esta venta? La población se ajustará automáticamente.')) return
+
+        const { error } = await deleteIngreso(venta.id)
+
+        if (!error) {
+            // Restore population
+            const nuevaCantidad = produccion.cantidad_actual + (parseInt(venta.cantidad_vendida) || 0)
+            await updateProduccion(id, { cantidad_actual: nuevaCantidad })
+            loadData()
+        } else {
+            alert('Error al eliminar venta: ' + error.message)
+        }
+    }
+
+    const handleEditVenta = (venta) => {
+        setSelectedVenta(venta)
+        setFormVenta({
+            cantidad: venta.cantidad_vendida || 0,
+            peso_total: venta.peso_total || 0,
+            precio_kilo: venta.precio_kilo || 13000,
+            monto_total: venta.monto_total || 0,
+            cliente: venta.cliente || '',
+            estado_pago: venta.estado_pago || 'debe'
+        })
+        setShowEditVentaModal(true)
+    }
+
+    const handleUpdateVenta = async (e) => {
+        e.preventDefault()
+        const peso = parseFloat(formVenta.peso_total || 0)
+        const precio = parseFloat(formVenta.precio_kilo || 13000)
+        const cantidad = parseInt(formVenta.cantidad || 0)
+        const montoTotal = parseFloat(formVenta.monto_total) || (peso * precio)
+
+        const { error } = await updateIngreso(selectedVenta.id, {
+            concepto: `Venta de pollos${formVenta.cliente ? ' - ' + formVenta.cliente : ''}`,
+            monto_total: montoTotal,
+            cantidad_vendida: cantidad,
+            peso_total: peso,
+            kilos_vendidos: peso,
+            precio_kilo: precio,
+            precio_por_kilo: precio,
+            cliente: formVenta.cliente || 'Consumidor Final',
+            estado_pago: formVenta.estado_pago
+        })
+
+        if (!error) {
+            // Adjust population
+            const diff = (parseInt(selectedVenta.cantidad_vendida) || 0) - cantidad
+            const nuevaCantidad = produccion.cantidad_actual + diff
+            await updateProduccion(id, { cantidad_actual: nuevaCantidad })
+
+            setShowEditVentaModal(false)
+            setSelectedVenta(null)
+            loadData()
+        } else {
+            alert('Error al actualizar venta: ' + error.message)
         }
     }
 
@@ -129,6 +231,15 @@ const PollosDetalle = () => {
         if (!error) {
             setShowMortalidadModal(false)
             setFormMortalidad({ cantidad: '', motivo: '' })
+            loadData()
+        }
+    }
+
+    const handleUpdateLote = async (e) => {
+        e.preventDefault()
+        const { error } = await updateProduccion(id, formEditLote)
+        if (!error) {
+            setShowEditLoteModal(false)
             loadData()
         }
     }
@@ -169,6 +280,17 @@ const PollosDetalle = () => {
                             Galpón: {produccion.galpon || 'N/A'}
                         </p>
                     </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => {
+                            setFormEditLote({ ...produccion })
+                            setShowEditLoteModal(true)
+                        }}
+                        className="material-symbols-outlined text-gray-400 hover:text-primary transition-colors"
+                    >
+                        edit
+                    </button>
                 </div>
             </header>
 
@@ -326,15 +448,31 @@ const PollosDetalle = () => {
                                                     </span>
                                                 </div>
                                                 <p className="text-[10px] text-[#688961] uppercase font-bold">{formatDateShort(i.fecha)} • {i.cliente || 'Consumidor'}</p>
-                                                {i.estado_pago === 'debe' && (
+                                                <div className="flex items-center gap-3 mt-1">
+                                                    {i.estado_pago === 'debe' && (
+                                                        <button
+                                                            onClick={() => handleMarkAsPaid(i.id)}
+                                                            className="text-[9px] font-bold text-primary underline underline-offset-2 flex items-center gap-1"
+                                                        >
+                                                            <span className="material-symbols-outlined text-[12px]">check_circle</span>
+                                                            Pagar
+                                                        </button>
+                                                    )}
                                                     <button
-                                                        onClick={() => handleMarkAsPaid(i.id)}
-                                                        className="mt-1 text-[9px] font-bold text-primary underline underline-offset-2 flex items-center gap-1"
+                                                        onClick={() => handleEditVenta(i)}
+                                                        className="text-[9px] font-bold text-blue-500 underline underline-offset-2 flex items-center gap-1"
                                                     >
-                                                        <span className="material-symbols-outlined text-[12px]">check_circle</span>
-                                                        Marcar como pagado
+                                                        <span className="material-symbols-outlined text-[12px]">edit</span>
+                                                        Editar
                                                     </button>
-                                                )}
+                                                    <button
+                                                        onClick={() => handleDeleteVenta(i)}
+                                                        className="text-[9px] font-bold text-red-500 underline underline-offset-2 flex items-center gap-1"
+                                                    >
+                                                        <span className="material-symbols-outlined text-[12px]">delete</span>
+                                                        Borrar
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="text-right">
@@ -405,7 +543,7 @@ const PollosDetalle = () => {
 
             {showVentaModal && (
                 <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-                    <div className="bg-white dark:bg-[#0a1108] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 border-x border-t border-[#dde6db] dark:border-[#2a3528]">
+                    <div className="bg-white dark:bg-[#0a1108] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 border-x border-t border-[#dde6db] dark:border-[#2a3528] max-h-[95vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-black text-[#121811] dark:text-white">Nueva Venta</h3>
                             <button onClick={() => setShowVentaModal(false)} className="size-10 rounded-full bg-gray-100 dark:bg-[#1a2618] flex items-center justify-center">
@@ -426,7 +564,98 @@ const PollosDetalle = () => {
                                     ))}
                                 </select>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Cant. (Aves)</label>
+                                    <input
+                                        type="number" required
+                                        value={formVenta.cantidad}
+                                        onChange={e => setFormVenta({ ...formVenta, cantidad: e.target.value })}
+                                        className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Peso Total (Kg)</label>
+                                        <input
+                                            type="number" step="0.01" required
+                                            value={formVenta.weight || formVenta.peso_total}
+                                            onChange={e => setFormVenta(prev => updateVentaCalculations('peso_total', e.target.value, prev))}
+                                            className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary font-bold"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Precio por Kilo ($)</label>
+                                        <input
+                                            type="number"
+                                            value={formVenta.precio_kilo}
+                                            onChange={e => setFormVenta(prev => updateVentaCalculations('precio_kilo', e.target.value, prev))}
+                                            className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
+                                            placeholder="13000"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Monto Total de la Venta ($)</label>
+                                    <input
+                                        type="number" step="0.01"
+                                        value={formVenta.monto_total}
+                                        onChange={e => setFormVenta(prev => updateVentaCalculations('monto_total', e.target.value, prev))}
+                                        className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-lg focus:ring-2 ring-primary font-black text-primary"
+                                        placeholder="0.00"
+                                    />
+                                    <p className="text-[9px] text-[#688961] mt-1 px-1">Puedes ingresar el peso o el monto total y el otro se calculará.</p>
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Estado del Pago</label>
+                                    <select
+                                        value={formVenta.estado_pago}
+                                        onChange={e => setFormVenta({ ...formVenta, estado_pago: e.target.value })}
+                                        className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
+                                    >
+                                        <option value="pagado">Pagado (Completado)</option>
+                                        <option value="debe">Debe (Pendiente)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="bg-primary/10 p-4 rounded-2xl flex justify-between items-center text-primary font-black uppercase text-[10px]">
+                                <span>Resumen de Operación</span>
+                                <span>{formatCurrency(formVenta.monto_total || 0)}</span>
+                            </div>
+                            <button type="submit" className="w-full bg-primary text-black font-black py-4 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all">
+                                CONFIRMAR VENTA
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showEditVentaModal && (
+                <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                    <div className="bg-white dark:bg-[#0a1108] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 border-x border-t border-[#dde6db] dark:border-[#2a3528] max-h-[95vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-blue-500">Editar Venta</h3>
+                            <button onClick={() => { setShowEditVentaModal(false); setSelectedVenta(null); }} className="size-10 rounded-full bg-gray-100 dark:bg-[#1a2618] flex items-center justify-center">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <form onSubmit={handleUpdateVenta} className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Cliente</label>
+                                <select
+                                    value={formVenta.cliente}
+                                    onChange={e => setFormVenta({ ...formVenta, cliente: e.target.value })}
+                                    className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
+                                >
+                                    <option value="">Consumidor Final</option>
+                                    {recentClients.map((client, idx) => (
+                                        <option key={idx} value={client.nombre}>{client.nombre}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="space-y-4">
                                 <div>
                                     <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Cant. (Aves)</label>
                                     <input
@@ -436,22 +665,33 @@ const PollosDetalle = () => {
                                         className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Peso Total (Kg)</label>
-                                    <input
-                                        type="number" step="0.01" required
-                                        value={formVenta.peso_total}
-                                        onChange={e => setFormVenta({ ...formVenta, peso_total: e.target.value })}
-                                        className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary font-bold"
-                                    />
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Peso Total (Kg)</label>
+                                        <input
+                                            type="number" step="0.01" required
+                                            value={formVenta.peso_total}
+                                            onChange={e => setFormVenta(prev => updateVentaCalculations('peso_total', e.target.value, prev))}
+                                            className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary font-bold"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Precio por Kilo ($)</label>
+                                        <input
+                                            type="number"
+                                            value={formVenta.precio_kilo}
+                                            onChange={e => setFormVenta(prev => updateVentaCalculations('precio_kilo', e.target.value, prev))}
+                                            className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
+                                        />
+                                    </div>
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Precio/Kg</label>
+                                    <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Monto Total ($)</label>
                                     <input
-                                        type="number"
-                                        value={formVenta.precio_kilo}
-                                        onChange={e => setFormVenta({ ...formVenta, precio_kilo: e.target.value })}
-                                        className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
+                                        type="number" step="0.01"
+                                        value={formVenta.monto_total}
+                                        onChange={e => setFormVenta(prev => updateVentaCalculations('monto_total', e.target.value, prev))}
+                                        className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary font-bold text-blue-500"
                                     />
                                 </div>
                                 <div>
@@ -466,14 +706,12 @@ const PollosDetalle = () => {
                                     </select>
                                 </div>
                             </div>
-                            <div className="bg-primary/10 p-4 rounded-2xl flex justify-between items-center">
-                                <span className="text-xs font-bold text-gray-500 uppercase">Total a Recibir</span>
-                                <span className="text-xl font-black text-primary">
-                                    {formatCurrency((formVenta.peso_total * formVenta.precio_kilo) || 0)}
-                                </span>
+                            <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-2xl flex justify-between items-center text-blue-500 font-black uppercase text-[10px]">
+                                <span>Resumen de Edición</span>
+                                <span>{formatCurrency(formVenta.monto_total || 0)}</span>
                             </div>
-                            <button type="submit" className="w-full bg-primary text-black font-black py-4 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all">
-                                CONFIRMAR VENTA
+                            <button type="submit" className="w-full bg-blue-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+                                GUARDAR CAMBIOS
                             </button>
                         </form>
                     </div>
@@ -482,7 +720,7 @@ const PollosDetalle = () => {
 
             {showMortalidadModal && (
                 <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
-                    <div className="bg-white dark:bg-[#0a1108] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 border-x border-t border-[#dde6db] dark:border-[#2a3528]">
+                    <div className="bg-white dark:bg-[#0a1108] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 border-x border-t border-[#dde6db] dark:border-[#2a3528] max-h-[95vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
                             <h3 className="text-xl font-black text-red-500">Reportar Mortalidad</h3>
                             <button onClick={() => setShowMortalidadModal(false)} className="size-10 rounded-full bg-gray-100 dark:bg-[#1a2618] flex items-center justify-center">
@@ -503,6 +741,64 @@ const PollosDetalle = () => {
                             </div>
                             <button type="submit" className="w-full bg-red-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-red-500/20 active:scale-95 transition-all mt-4">
                                 CONFIRMAR BAJAS
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showEditLoteModal && (
+                <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+                    <div className="bg-white dark:bg-[#0a1108] w-full max-w-md rounded-t-3xl sm:rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300 border-x border-t border-[#dde6db] dark:border-[#2a3528] max-h-[95vh] overflow-y-auto">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-xl font-black text-[#121811] dark:text-white">Editar Lote</h3>
+                            <button onClick={() => setShowEditLoteModal(false)} className="size-10 rounded-full bg-gray-100 dark:bg-[#1a2618] flex items-center justify-center">
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
+                        <form onSubmit={handleUpdateLote} className="space-y-4">
+                            <div>
+                                <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Nombre</label>
+                                <input
+                                    type="text" required
+                                    value={formEditLote.nombre}
+                                    onChange={e => setFormEditLote({ ...formEditLote, nombre: e.target.value })}
+                                    className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary font-bold"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Galpón</label>
+                                <input
+                                    type="text"
+                                    value={formEditLote.galpon}
+                                    onChange={e => setFormEditLote({ ...formEditLote, galpon: e.target.value })}
+                                    className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Población Actual</label>
+                                    <input
+                                        type="number" required
+                                        value={formEditLote.cantidad_actual}
+                                        onChange={e => setFormEditLote({ ...formEditLote, cantidad_actual: parseInt(e.target.value) || 0 })}
+                                        className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase text-[#688961] mb-2 px-1">Estado</label>
+                                    <select
+                                        value={formEditLote.estado}
+                                        onChange={e => setFormEditLote({ ...formEditLote, estado: e.target.value })}
+                                        className="w-full bg-[#f1f4f0] dark:bg-[#1a2618] border-0 rounded-2xl p-4 text-sm focus:ring-2 ring-primary"
+                                    >
+                                        <option value="activo">Activo</option>
+                                        <option value="finalizado">Finalizado</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <button type="submit" className="w-full bg-primary text-black font-black py-4 rounded-2xl shadow-lg shadow-primary/20 active:scale-95 transition-all mt-4">
+                                GUARDAR CAMBIOS
                             </button>
                         </form>
                     </div>

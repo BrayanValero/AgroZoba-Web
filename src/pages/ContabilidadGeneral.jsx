@@ -12,7 +12,13 @@ const ContabilidadGeneral = () => {
         ingresos: 0,
         gastos: 0,
         aportes: 0,
-        balance: 0
+        porCobrar: 0,
+        balance: 0,
+        porModulo: {
+            pollos: 0,
+            gallinas: 0,
+            vacas: 0
+        }
     })
     const [movimientos, setMovimientos] = useState([])
     const [filtroFecha, setFiltroFecha] = useState('mes')
@@ -33,14 +39,29 @@ const ContabilidadGeneral = () => {
 
             // Calcular stats locales basados en el filtro
             const ingresos = todosMovimientos.filter(m => m.tipo === 'ingreso').reduce((acc, m) => acc + (m.monto || 0), 0)
+            const porCobrar = todosMovimientos.filter(m => m.tipo === 'ingreso' && m.estado_pago === 'debe').reduce((acc, m) => acc + (m.monto || 0), 0)
             const gastos = todosMovimientos.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + (m.monto || 0), 0)
             const aportes = todosMovimientos.filter(m => m.tipo === 'aporte').reduce((acc, m) => acc + (m.monto || 0), 0)
+
+            const calcMod = (mod) => {
+                const movs = todosMovimientos.filter(m => m.modulo === mod)
+                const inc = movs.filter(m => m.tipo === 'ingreso' && m.estado_pago !== 'debe').reduce((acc, m) => acc + (m.monto || 0), 0)
+                const apt = movs.filter(m => m.tipo === 'aporte').reduce((acc, m) => acc + (m.monto || 0), 0)
+                const gst = movs.filter(m => m.tipo === 'gasto').reduce((acc, m) => acc + (m.monto || 0), 0)
+                return (inc + apt) - gst
+            }
 
             setStats({
                 ingresos,
                 gastos,
                 aportes,
-                balance: (ingresos + aportes) - gastos
+                porCobrar,
+                balance: (ingresos - porCobrar + aportes) - gastos,
+                porModulo: {
+                    pollos: calcMod('Pollos'),
+                    gallinas: calcMod('Gallinas'),
+                    vacas: calcMod('Vacas')
+                }
             })
 
             setMovimientos(todosMovimientos)
@@ -215,14 +236,23 @@ const ContabilidadGeneral = () => {
                 )}
 
                 {/* Summary Stats */}
-                <div className="grid grid-cols-3 gap-3 p-4">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4">
                     <div className="flex flex-col gap-2 rounded-2xl p-4 bg-white dark:bg-white/5 border border-gray-100 dark:border-gray-800 shadow-sm">
                         <div className="flex items-center gap-1.5 mb-1">
                             <span className="material-symbols-outlined text-primary text-[18px]">arrow_downward</span>
-                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider">Ingresos</p>
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider">Ventas</p>
                         </div>
                         <p className="text-[#121811] dark:text-white tracking-tight text-base font-extrabold leading-tight">
                             {loading ? '...' : formatCurrency(stats.ingresos)}
+                        </p>
+                    </div>
+                    <div className="flex flex-col gap-2 rounded-2xl p-4 bg-white dark:bg-white/5 border border-gray-100 dark:border-gray-800 shadow-sm">
+                        <div className="flex items-center gap-1.5 mb-1">
+                            <span className="material-symbols-outlined text-orange-500 text-[18px]">pending_actions</span>
+                            <p className="text-gray-500 dark:text-gray-400 text-[10px] font-bold uppercase tracking-wider">Por Cobrar</p>
+                        </div>
+                        <p className="text-orange-600 dark:text-orange-400 tracking-tight text-base font-extrabold leading-tight">
+                            {loading ? '...' : formatCurrency(stats.porCobrar)}
                         </p>
                     </div>
                     <div className="flex flex-col gap-2 rounded-2xl p-4 bg-white dark:bg-white/5 border border-gray-100 dark:border-gray-800 shadow-sm">
@@ -246,15 +276,51 @@ const ContabilidadGeneral = () => {
                 </div>
 
                 {/* Balance Card */}
-                <div className="px-4 pb-6">
+                <div className="px-4 pb-4">
                     <div className="rounded-2xl p-5 bg-gradient-to-br from-primary/20 to-primary/5 border-2 border-primary/30">
-                        <p className="text-[#688961] dark:text-gray-300 text-sm font-bold mb-1">Balance Total</p>
+                        <p className="text-[#688961] dark:text-gray-300 text-sm font-bold mb-1">Balance Consolidado</p>
                         <p className="text-[#121811] dark:text-white text-3xl font-black mb-1">
                             {loading ? '...' : formatCurrency(stats.balance)}
                         </p>
                         <p className="text-xs text-[#688961] dark:text-gray-400">
-                            {stats.balance >= 0 ? '✓ Superávit' : '⚠ Déficit'} - {filtroFecha === 'semana' ? 'Última semana' : filtroFecha === 'mes' ? 'Último mes' : 'Último trimestre'}
+                            {stats.balance >= 0 ? '✓ Superávit' : '⚠ Déficit'} - Todas las secciones
                         </p>
+                    </div>
+                </div>
+
+                {/* Breakdown by module */}
+                <div className="px-4 pb-6">
+                    <div className="bg-[#f1f4f0] dark:bg-[#1a2618] rounded-2xl p-4 border border-[#dde6db] dark:border-[#2a3528]">
+                        <h3 className="text-[10px] font-black text-[#688961] uppercase mb-4 tracking-[0.1em] border-b border-gray-200 dark:border-gray-800 pb-2">Desglose por Sección</h3>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="size-8 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-500">
+                                        <span className="material-symbols-outlined text-lg">flutter_dash</span>
+                                    </div>
+                                    <span className="text-gray-700 dark:text-gray-300 font-bold text-sm">Pollos</span>
+                                </div>
+                                <span className={`font-black ${stats.porModulo.pollos >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(stats.porModulo.pollos)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="size-8 rounded-lg bg-orange-500/10 flex items-center justify-center text-orange-500">
+                                        <span className="material-symbols-outlined text-lg">egg</span>
+                                    </div>
+                                    <span className="text-gray-700 dark:text-gray-300 font-bold text-sm">Gallinas</span>
+                                </div>
+                                <span className={`font-black ${stats.porModulo.gallinas >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(stats.porModulo.gallinas)}</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-3">
+                                    <div className="size-8 rounded-lg bg-green-500/10 flex items-center justify-center text-green-600">
+                                        <span className="material-symbols-outlined text-lg">pets</span>
+                                    </div>
+                                    <span className="text-gray-700 dark:text-gray-300 font-bold text-sm">Vacas</span>
+                                </div>
+                                <span className={`font-black ${stats.porModulo.vacas >= 0 ? 'text-primary' : 'text-red-500'}`}>{formatCurrency(stats.porModulo.vacas)}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

@@ -76,17 +76,18 @@ export const getDashboardStats = async (userId, startDate = null, endDate = null
 export const getFinancialMovements = async (userId, startDate, endDate = null) => {
     try {
         // Select only necessary columns to reduce payload size
-        const commonCols = 'id, monto, fecha, concepto, categoria, socios'
+        const gastosCols = 'id, monto, fecha, concepto, categoria'
+        const aportesCols = 'id, monto, fecha, concepto, socios'
 
-        let ingresosPollosQuery = supabase.from('ingresos_pollos').select('monto_total, fecha, estado_pago').eq('user_id', userId).gte('fecha', startDate)
-        let ventasGallinasQuery = supabase.from('ventas_gallinas').select('monto_total, fecha, estado_pago').eq('user_id', userId).gte('fecha', startDate)
-        let produccionLecheQuery = supabase.from('produccion_leche').select('monto_total, fecha, estado_pago').eq('user_id', userId).gte('fecha', startDate)
-        let gastosPollosQuery = supabase.from('gastos_pollos').select(commonCols).eq('user_id', userId).gte('fecha', startDate)
-        let gastosGallinasQuery = supabase.from('gastos_gallinas').select(commonCols).eq('user_id', userId).gte('fecha', startDate)
-        let gastosVacasQuery = supabase.from('gastos_vacas').select(commonCols).eq('user_id', userId).gte('fecha', startDate)
-        let aportesPollosQuery = supabase.from('aportes_pollos').select(commonCols).eq('user_id', userId).gte('fecha', startDate)
-        let aportesGallinasQuery = supabase.from('aportes_gallinas').select(commonCols).eq('user_id', userId).gte('fecha', startDate)
-        let aportesVacasQuery = supabase.from('aportes_vacas').select(commonCols).eq('user_id', userId).gte('fecha', startDate)
+        let ingresosPollosQuery = supabase.from('ingresos_pollos').select('id, monto_total, fecha, estado_pago, cliente').eq('user_id', userId).gte('fecha', startDate)
+        let ventasGallinasQuery = supabase.from('ventas_gallinas').select('id, monto_total, fecha, estado_pago, cliente').eq('user_id', userId).gte('fecha', startDate)
+        let produccionLecheQuery = supabase.from('produccion_leche').select('id, monto_total, fecha, estado_pago, cliente').eq('user_id', userId).gte('fecha', startDate)
+        let gastosPollosQuery = supabase.from('gastos_pollos').select(gastosCols).eq('user_id', userId).gte('fecha', startDate)
+        let gastosGallinasQuery = supabase.from('gastos_gallinas').select(gastosCols).eq('user_id', userId).gte('fecha', startDate)
+        let gastosVacasQuery = supabase.from('gastos_vacas').select(gastosCols).eq('user_id', userId).gte('fecha', startDate)
+        let aportesPollosQuery = supabase.from('aportes_pollos').select(aportesCols).eq('user_id', userId).gte('fecha', startDate)
+        let aportesGallinasQuery = supabase.from('aportes_gallinas').select(aportesCols).eq('user_id', userId).gte('fecha', startDate)
+        let aportesVacasQuery = supabase.from('aportes_vacas').select(aportesCols).eq('user_id', userId).gte('fecha', startDate)
 
         if (endDate) {
             ingresosPollosQuery = ingresosPollosQuery.lte('fecha', endDate)
@@ -123,9 +124,9 @@ export const getFinancialMovements = async (userId, startDate, endDate = null) =
         ])
 
         const todosMovimientos = [
-            ...(ingresosPollos?.map(i => ({ tipo: 'ingreso', concepto: 'Venta de Pollos', monto: i.monto_total, fecha: i.fecha, modulo: 'Pollos', estado_pago: i.estado_pago || 'pagado' })) || []),
-            ...(ventasGallinas?.map(v => ({ tipo: 'ingreso', concepto: 'Venta de Huevos', monto: v.monto_total, fecha: v.fecha, modulo: 'Gallinas', estado_pago: v.estado_pago || 'pagado' })) || []),
-            ...(produccionLeche?.map(p => ({ tipo: 'ingreso', concepto: 'Venta de Leche', monto: p.monto_total, fecha: p.fecha, modulo: 'Vacas', estado_pago: p.estado_pago || 'pagado' })) || []),
+            ...(ingresosPollos?.map(i => ({ tipo: 'ingreso', concepto: `Venta de Pollos${i.cliente ? ' - ' + i.cliente : ''}`, monto: i.monto_total, fecha: i.fecha, modulo: 'Pollos', estado_pago: i.estado_pago || 'pagado' })) || []),
+            ...(ventasGallinas?.map(v => ({ tipo: 'ingreso', concepto: `Venta de Huevos${v.cliente ? ' - ' + v.cliente : ''}`, monto: v.monto_total, fecha: v.fecha, modulo: 'Gallinas', estado_pago: v.estado_pago || 'pagado' })) || []),
+            ...(produccionLeche?.map(p => ({ tipo: 'ingreso', concepto: `Venta de Leche${p.cliente ? ' - ' + p.cliente : ''}`, monto: p.monto_total, fecha: p.fecha, modulo: 'Vacas', estado_pago: p.estado_pago || 'pagado' })) || []),
             ...(gastosPollos?.map(g => ({ tipo: 'gasto', concepto: g.concepto, monto: g.monto, fecha: g.fecha, modulo: 'Pollos', categoria: g.categoria })) || []),
             ...(gastosGallinas?.map(g => ({ tipo: 'gasto', concepto: g.concepto, monto: g.monto, fecha: g.fecha, modulo: 'Gallinas', categoria: g.categoria })) || []),
             ...(gastosVacas?.map(g => ({ tipo: 'gasto', concepto: g.concepto, monto: g.monto, fecha: g.fecha, modulo: 'Vacas', categoria: g.categoria })) || []),
@@ -193,6 +194,7 @@ export const getProductionHistory = async (userId, days = 30) => {
         const { data: leche } = await supabase
             .from('produccion_leche')
             .select('fecha, litros')
+            .eq('user_id', userId)
             .gte('fecha', startDateStr)
             .order('fecha', { ascending: true })
 
@@ -250,17 +252,20 @@ export const getFinancialHistory = async (userId, days = 30) => {
             { data: produccionLeche },
             { data: gastosPollos },
             { data: gastosGallinas },
-            { data: gastosVacas }
+            { data: gastosVacas },
+            { data: aportesPollos },
+            { data: aportesGallinas },
+            { data: aportesVacas }
         ] = await Promise.all([
-            supabase.from('ingresos_pollos').select('monto_total, fecha').gte('fecha', startDateStr),
-            supabase.from('ventas_gallinas').select('monto_total, fecha').gte('fecha', startDateStr),
-            supabase.from('produccion_leche').select('monto_total, fecha').gte('fecha', startDateStr),
-            supabase.from('gastos_pollos').select('monto, fecha').gte('fecha', startDateStr),
-            supabase.from('gastos_gallinas').select('monto, fecha').gte('fecha', startDateStr),
-            supabase.from('gastos_vacas').select('monto, fecha').gte('fecha', startDateStr),
-            supabase.from('aportes_pollos').select('monto, fecha').gte('fecha', startDateStr),
-            supabase.from('aportes_gallinas').select('monto, fecha').gte('fecha', startDateStr),
-            supabase.from('aportes_vacas').select('monto, fecha').gte('fecha', startDateStr)
+            supabase.from('ingresos_pollos').select('monto_total, fecha').eq('user_id', userId).gte('fecha', startDateStr),
+            supabase.from('ventas_gallinas').select('monto_total, fecha').eq('user_id', userId).gte('fecha', startDateStr),
+            supabase.from('produccion_leche').select('monto_total, fecha').eq('user_id', userId).gte('fecha', startDateStr),
+            supabase.from('gastos_pollos').select('monto, fecha').eq('user_id', userId).gte('fecha', startDateStr),
+            supabase.from('gastos_gallinas').select('monto, fecha').eq('user_id', userId).gte('fecha', startDateStr),
+            supabase.from('gastos_vacas').select('monto, fecha').eq('user_id', userId).gte('fecha', startDateStr),
+            supabase.from('aportes_pollos').select('monto, fecha').eq('user_id', userId).gte('fecha', startDateStr),
+            supabase.from('aportes_gallinas').select('monto, fecha').eq('user_id', userId).gte('fecha', startDateStr),
+            supabase.from('aportes_vacas').select('monto, fecha').eq('user_id', userId).gte('fecha', startDateStr)
         ])
 
         const historyMap = {}

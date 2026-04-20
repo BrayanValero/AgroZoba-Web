@@ -1,6 +1,18 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getLoteById, getGastosByLote, getVentasByLote, updateVenta, createGasto, getAportesByLote } from '../services/gallinas'
+import { 
+    getLoteById, 
+    getGastosByLote, 
+    getVentasByLote, 
+    updateVenta, 
+    createGasto, 
+    getAportesByLote,
+    updateLote,
+    deleteLote,
+    updateGasto,
+    deleteGasto,
+    deleteVenta
+} from '../services/gallinas'
 import { useAuth } from '../context/AuthContext'
 import { formatCurrency, formatDateShort } from '../utils/formatters'
 import BottomNavigation from '../components/BottomNavigation'
@@ -21,6 +33,10 @@ const GallinasDetalle = () => {
         monto: '',
         categoria: 'alimento'
     })
+    const [showEditLote, setShowEditLote] = useState(false)
+    const [editLoteForm, setEditLoteForm] = useState({})
+    const [editingGasto, setEditingGasto] = useState(null)
+    const [editingVenta, setEditingVenta] = useState(null)
 
     useEffect(() => {
         loadData()
@@ -80,6 +96,56 @@ const GallinasDetalle = () => {
         }
     }
 
+    const handleUpdateLote = async (e) => {
+        e.preventDefault()
+        const { error } = await updateLote(id, editLoteForm)
+        if (!error) {
+            setShowEditLote(false)
+            loadData()
+        }
+    }
+
+    const handleDeleteLote = async () => {
+        if (window.confirm('¿Estás seguro de eliminar este lote? Esta acción no se puede deshacer.')) {
+            const { error } = await deleteLote(id)
+            if (!error) {
+                navigate('/gallinas')
+            }
+        }
+    }
+
+    const handleDeleteGasto = async (gastoId) => {
+        if (window.confirm('¿Eliminar este gasto?')) {
+            const { error } = await deleteGasto(gastoId)
+            if (!error) loadData()
+        }
+    }
+
+    const handleDeleteVenta = async (ventaId) => {
+        if (window.confirm('¿Eliminar esta venta?')) {
+            const { error } = await deleteVenta(ventaId)
+            if (!error) loadData()
+        }
+    }
+
+    const handleUpdateGasto = async (e) => {
+        e.preventDefault()
+        const { error } = await updateGasto(editingGasto.id, editingGasto)
+        if (!error) {
+            setEditingGasto(null)
+            loadData()
+        }
+    }
+
+    const handleUpdateVenta = async (e) => {
+        e.preventDefault()
+        const { error } = await updateVenta(editingVenta.id, editingVenta)
+        if (!error) {
+            setEditingVenta(null)
+            loadData()
+        }
+    }
+
     if (loading) return <div className="p-8 text-center">Cargando...</div>
     if (!lote) return <div className="p-8 text-center">Lote no encontrado</div>
 
@@ -105,6 +171,23 @@ const GallinasDetalle = () => {
                             Raza: {lote.raza}
                         </p>
                     </div>
+                </div>
+                <div className="flex items-center gap-2">
+                    <button 
+                        onClick={() => {
+                            setEditLoteForm({ ...lote })
+                            setShowEditLote(true)
+                        }}
+                        className="material-symbols-outlined text-gray-400 hover:text-primary transition-colors"
+                    >
+                        edit
+                    </button>
+                    <button 
+                        onClick={handleDeleteLote}
+                        className="material-symbols-outlined text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                        delete
+                    </button>
                 </div>
             </header>
 
@@ -215,7 +298,13 @@ const GallinasDetalle = () => {
                                             <p className="text-xs text-gray-500">{formatDateShort(g.fecha)} - {g.categoria}</p>
                                         </div>
                                     </div>
-                                    <span className="font-bold text-[#121811] dark:text-white">{formatCurrency(g.monto)}</span>
+                                    <div className="flex items-center gap-4">
+                                        <span className="font-bold text-[#121811] dark:text-white">{formatCurrency(g.monto)}</span>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingGasto({ ...g })} className="material-symbols-outlined text-gray-400 text-sm">edit</button>
+                                            <button onClick={() => handleDeleteGasto(g.id)} className="material-symbols-outlined text-gray-400 text-sm">delete</button>
+                                        </div>
+                                    </div>
                                 </div>
                             ))
                         )}
@@ -253,7 +342,13 @@ const GallinasDetalle = () => {
                                             )}
                                         </div>
                                     </div>
-                                    <span className="font-bold text-[#121811] dark:text-white">{formatCurrency(v.monto_total)}</span>
+                                    <div className="flex items-center gap-4">
+                                        <span className="font-bold text-[#121811] dark:text-white">{formatCurrency(v.monto_total)}</span>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => setEditingVenta({ ...v })} className="material-symbols-outlined text-gray-400 text-sm">edit</button>
+                                            <button onClick={() => handleDeleteVenta(v.id)} className="material-symbols-outlined text-gray-400 text-sm">delete</button>
+                                        </div>
+                                    </div>
                                 </div>
                             ))
                         )}
@@ -261,50 +356,88 @@ const GallinasDetalle = () => {
                 )}
             </main>
 
-            {/* Modal Nuevo Gasto */}
-            {showFormGasto && (
+            {/* Modal Editar Lote */}
+            {showEditLote && (
                 <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-primary/30">
                         <div className="flex justify-between items-center mb-6">
-                            <h3 className="font-bold text-lg text-[#121811] dark:text-white">Nuevo Gasto</h3>
-                            <button onClick={() => setShowFormGasto(false)}>
+                            <h3 className="font-bold text-lg text-[#121811] dark:text-white">Editar Lote</h3>
+                            <button onClick={() => setShowEditLote(false)}>
                                 <span className="material-symbols-outlined text-gray-400">close</span>
                             </button>
                         </div>
-                        <form onSubmit={handleAddGasto} className="space-y-4">
+                        <form onSubmit={handleUpdateLote} className="space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Nombre</label>
+                                <input
+                                    type="text"
+                                    value={editLoteForm.nombre}
+                                    onChange={(e) => setEditLoteForm({ ...editLoteForm, nombre: e.target.value })}
+                                    className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3"
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Población Inicial</label>
+                                    <input
+                                        type="number"
+                                        value={editLoteForm.poblacion_inicial}
+                                        onChange={(e) => setEditLoteForm({ ...editLoteForm, poblacion_inicial: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Población Actual</label>
+                                    <input
+                                        type="number"
+                                        value={editLoteForm.poblacion_actual}
+                                        onChange={(e) => setEditLoteForm({ ...editLoteForm, poblacion_actual: e.target.value })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                className="w-full bg-primary text-black font-black px-6 py-3 rounded-lg shadow-md hover:bg-opacity-90 transition-all"
+                            >
+                                Guardar Cambios
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal Editar Gasto */}
+            {editingGasto && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-primary/30">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-bold text-lg text-[#121811] dark:text-white">Editar Gasto</h3>
+                            <button onClick={() => setEditingGasto(null)}>
+                                <span className="material-symbols-outlined text-gray-400">close</span>
+                            </button>
+                        </div>
+                        <form onSubmit={handleUpdateGasto} className="space-y-4">
                             <div>
                                 <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Concepto</label>
                                 <input
                                     type="text"
-                                    value={formGasto.concepto}
-                                    onChange={(e) => setFormGasto({ ...formGasto, concepto: e.target.value })}
-                                    className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                    placeholder="Ej: Alimento concentrado"
+                                    value={editingGasto.concepto}
+                                    onChange={(e) => setEditingGasto({ ...editingGasto, concepto: e.target.value })}
+                                    className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3"
                                     required
                                 />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Categoría</label>
-                                <select
-                                    value={formGasto.categoria}
-                                    onChange={(e) => setFormGasto({ ...formGasto, categoria: e.target.value })}
-                                    className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-[#121811] dark:text-white"
-                                >
-                                    <option value="alimento">Alimento</option>
-                                    <option value="medicina">Medicina/Vitaminas</option>
-                                    <option value="mano_obra">Mano de Obra</option>
-                                    <option value="servicios">Servicios</option>
-                                    <option value="otros">Otros</option>
-                                </select>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Monto</label>
                                 <input
                                     type="number"
-                                    value={formGasto.monto}
-                                    onChange={(e) => setFormGasto({ ...formGasto, monto: e.target.value })}
-                                    className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 text-lg font-bold text-[#121811] dark:text-white"
-                                    placeholder="$0.00"
+                                    value={editingGasto.monto}
+                                    onChange={(e) => setEditingGasto({ ...editingGasto, monto: e.target.value })}
+                                    className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3"
                                     required
                                 />
                             </div>
@@ -312,16 +445,68 @@ const GallinasDetalle = () => {
                                 type="submit"
                                 className="w-full bg-primary text-black font-black px-6 py-3 rounded-lg shadow-md hover:bg-opacity-90 transition-all"
                             >
-                                Registrar Gasto
+                                Actualizar Gasto
                             </button>
                         </form>
                     </div>
                 </div>
-            )
-            }
+            )}
+
+            {/* Modal Editar Venta */}
+            {editingVenta && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white dark:bg-[#1a2618] rounded-2xl p-6 max-w-md w-full border-2 border-primary/30">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-bold text-lg text-[#121811] dark:text-white">Editar Venta</h3>
+                            <button onClick={() => setEditingVenta(null)}>
+                                <span className="material-symbols-outlined text-gray-400">close</span>
+                            </button>
+                        </div>
+                        <form onSubmit={handleUpdateVenta} className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Cantidad</label>
+                                    <input
+                                        type="number"
+                                        value={editingVenta.cantidad}
+                                        onChange={(e) => setEditingVenta({ ...editingVenta, cantidad: e.target.value, monto_total: e.target.value * editingVenta.precio_unitario })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3"
+                                        required
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Precio Unitario</label>
+                                    <input
+                                        type="number"
+                                        value={editingVenta.precio_unitario}
+                                        onChange={(e) => setEditingVenta({ ...editingVenta, precio_unitario: e.target.value, monto_total: e.target.value * editingVenta.cantidad })}
+                                        className="w-full bg-white dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-[#688961] uppercase mb-2">Monto Total</label>
+                                <input
+                                    type="number"
+                                    value={editingVenta.monto_total}
+                                    readOnly
+                                    className="w-full bg-gray-50 dark:bg-[#0a1108] border border-[#dde6db] dark:border-[#2a3528] rounded-lg p-3 font-bold"
+                                />
+                            </div>
+                            <button
+                                type="submit"
+                                className="w-full bg-primary text-black font-black px-6 py-3 rounded-lg shadow-md hover:bg-opacity-90 transition-all"
+                            >
+                                Actualizar Venta
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             <BottomNavigation />
-        </div >
+        </div>
     )
 }
 
